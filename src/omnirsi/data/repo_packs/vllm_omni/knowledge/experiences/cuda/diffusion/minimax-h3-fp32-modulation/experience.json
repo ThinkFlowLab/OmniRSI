@@ -1,0 +1,95 @@
+{
+  "id": "vllm_omni.cuda.diffusion.minimax_h3_fp32_modulation",
+  "title": "MiniMax-H3 modulation fusion changes rounding and requires platform guards",
+  "backend": "cuda",
+  "scenario": "diffusion.video_generation",
+  "summary": "Merged FP32-accumulating modulation fusion reduces launch count but removes intermediate BF16 rounding; its numerical drift and historical non-CUDA dispatch finding must remain visible.",
+  "tags": [
+    "minimax_h3",
+    "operator_fusion",
+    "modulation",
+    "rounding",
+    "platform_dispatch",
+    "counterexample"
+  ],
+  "sources": [
+    {
+      "url": "https://github.com/vllm-project/vllm-omni/pull/6281",
+      "type": "pull_request",
+      "commit": "7d74126f0723d355d82b47e98f820394320e1a4a",
+      "merge_commit": "14f2c16fb28e1e0c8615372675f2757466260ad8",
+      "status": "merged",
+      "accessed_at": "2026-10-09"
+    },
+    {
+      "url": "https://github.com/vllm-project/vllm-omni/pull/6281#discussion_r3809815474",
+      "type": "pull_request",
+      "commit": "7d74126f0723d355d82b47e98f820394320e1a4a",
+      "merge_commit": "14f2c16fb28e1e0c8615372675f2757466260ad8",
+      "status": "merged",
+      "accessed_at": "2026-10-09"
+    },
+    {
+      "url": "https://github.com/vllm-project/vllm-omni/pull/6281#discussion_r3809815564",
+      "type": "pull_request",
+      "commit": "7d74126f0723d355d82b47e98f820394320e1a4a",
+      "merge_commit": "14f2c16fb28e1e0c8615372675f2757466260ad8",
+      "status": "merged",
+      "accessed_at": "2026-10-09"
+    }
+  ],
+  "applicability": {
+    "hardware": [
+      "CUDA GPU SKU not stated in PR benchmark; do not substitute H200/B200"
+    ],
+    "software": [
+      "PR #6281 head 7d74126f0723d355d82b47e98f820394320e1a4a; merged 14f2c16fb28e1e0c8615372675f2757466260ad8",
+      "Triton modulation path, eager, USP4"
+    ],
+    "models": [
+      "MiniMax-H3 Ref2VA"
+    ],
+    "conditions": [
+      "5-second output, 49 denoise iterations; both configurations warmed up",
+      "Report hardware/driver/runtime identity before reproduction"
+    ]
+  },
+  "claims": [
+    {
+      "kind": "upstream_reported",
+      "description": "Engine E2E fell from 136961 ms to 134707 ms (1.65%); a single DiT profile reports 1969→1234 CUDA kernels (37.33% fewer). Profiled wall time is diagnostic and not interchangeable with unprofiled engine E2E."
+    },
+    {
+      "kind": "upstream_reported",
+      "description": "FP32 accumulation removes intermediate BF16 rounding. Reported output PSNR is 39.55 dB and SSIM 0.9750; the author explicitly says outputs are not bit-exact."
+    },
+    {
+      "kind": "review_finding",
+      "description": "Review identified x.is_cpu-only gating, which could launch Triton on NPU/XPU/MUSA, and noted row-major contiguity assumptions. The fetched PR patch still contains that historical guard; verify subsequent target-source fixes rather than inferring safe non-CUDA support."
+    }
+  ],
+  "recommendations": [
+    "Classify this as a numerically changed implementation and require an explicit quality tolerance.",
+    "Preserve original BF16 materialization boundaries when designing an exact fusion; otherwise report the changed rounding.",
+    "Gate fast paths by platform, device, dtype, shape and layout; retain backend-native norm/eager fallbacks."
+  ],
+  "validation_plan": [
+    "Verify current source platform guards and contiguity contract before remote use.",
+    "Compare operator outputs, trajectory drift and decoded video/audio against a same-seed reference and baseline self-run variance.",
+    "Repeat unprofiled E2E measurements with exact device/runtime identity; retain profile evidence separately.",
+    "Run fallback checks on each advertised backend; CPU tests alone do not validate CUDA/NPU numerical paths."
+  ],
+  "limitations": [
+    "Hardware SKU, repeat count and broader prompt coverage are not stated in the PR body.",
+    "A merged PR is not proof of quality equivalence or safe support on every backend.",
+    "Historical review findings may have changed later; source revision must be rechecked."
+  ],
+  "schema_version": 1,
+  "repo": "vllm_omni",
+  "component": "diffusion",
+  "status": "imported",
+  "verification": {
+    "locally_verified": false,
+    "evidence_level": "upstream_reported"
+  }
+}

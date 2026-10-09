@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "omnirsi"
+version = "0.1.0"
+description = "CLI-first reproducible inference experiments and source-grounded tuning knowledge"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+omnirsi = "omnirsi.cli:main"
+
+[project.urls]
+Repository = "https://github.com/ThinkFlowLab/OmniRSI"
+Issues = "https://github.com/ThinkFlowLab/OmniRSI/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+namespaces = false
+
+[tool.setuptools.package-data]
+omnirsi = ["data/**/*.json", "data/**/*.md"]
