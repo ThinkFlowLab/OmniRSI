@@ -138,7 +138,7 @@ def run(args):
     model = Path(args.model_path).resolve()
     if model.name != REVISION or json.loads((model/'model_index.json').read_text())['sample_sigmas'] != SIGMAS:
         raise ValueError('Exact pinned snapshot and Turbo schedule required')
-    output.parent.mkdir(parents=True)
+    output.parent.mkdir(parents=True, exist_ok=True)
     media = output.parent/'media'
     media.mkdir()
     settings = protocol(args.diagnostic, args.profile_steps, args.held_out)

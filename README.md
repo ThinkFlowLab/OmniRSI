@@ -59,6 +59,8 @@ omnirsi report --run-id RUN_ID --output-dir runs
 
 [B300 四卡 / Qwen-Image-2.1-Turbo 性能计划](docs/qwen21-turbo-b300-test-plan.md)是当前 campaign：固定最新 main 和公开模型 revision，720p 档位、完整 8-step schedule、原生 RGBA PNG；先 profile，再选择质量合格的四卡并行配置并分层优化，以五组 AB/BA 验证至少 20% E2E latency 下降。性能与精度结论以实测报告为准。
 
+[本地实测报告](docs/qwen21-turbo-b300-results.md)：五组 AB/BA 为 385.07→335.42 ms，降低 **12.89%**，未达到 20% 目标；所有最终/held-out RGBA 图像的解码像素一致。报告保留被拒绝的迭代和基础设施失败，不把 GPU 计划当作性能证据。
+
 此前 [LTX-2.5 计划](docs/ltx25-b300-test-plan.md)及[授权阻塞记录](docs/ltx25-b300-local-status.md)保留为历史，当前任务不再依赖该模型授权。
 
 ## 知识库

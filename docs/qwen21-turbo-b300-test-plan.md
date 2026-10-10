@@ -1,6 +1,6 @@
 # Local Qwen-Image-2.1-Turbo / B300 × 4 performance plan
 
-This replaces the active LTX-2.5 campaign. The old LTX plan and its blocked evidence remain historical. A plan is not a performance result.
+This replaces the active LTX-2.5 campaign. [Completed local results](qwen21-turbo-b300-results.md): 12.89% measured E2E improvement; the 20% goal was not reached. The old LTX plan and its blocked evidence remain historical. A plan is not a performance result.
 
 ## Goal, workload and non-goals
 
@@ -14,7 +14,7 @@ Five alternating AB/BA groups; each trial measures the mean of three fixed promp
 | --- | --- |
 | Source | Latest main at preparation: `f69b1f2b19cece03f6736c7da093ea25de0e24fd` (includes Turbo support #8699) |
 | Model | `Qwen/Qwen-Image-2.1-Turbo`, revision `d65dbc9a7e8f6b5479e33dee6030eaab2a906509` |
-| Hardware | Same local B300 IDs 0,1,2,3; NV18; NUMA 0 |
+| Hardware | Same local B300 IDs 2,5,6,7; NV18; NUMA 0 |
 | Task | Text to image, concurrency 1, one native RGBA PNG per request |
 | Resolution | 1280×704, 720p class, both dimensions divisible by 32 |
 | Precision | BF16; native prefix KV cache; no quantization or approximate cache |
@@ -36,6 +36,8 @@ Non-goals: changing model, steps, precision, image size, CFG, noise/seed handlin
 
 ## Phase 0: prepare and freeze
 
+Initial exploratory runs used GPUs 0–3; external Megatron jobs later occupied them. An attempted GPUs 4–7 window was interrupted by a foreign GPU4 job. Final qualification and comparisons use GPUs 2,5,6,7, with fresh reference/search/baseline data and a 250ms NVML observer. External GPU overlap interrupts only the owned helper and invalidates that trial. Earlier numbers are not the final 20% denominator. The observer keeps its logs outside trial directories. A preparation-only driver correction allows OmniRSI's pre-created trial directories while continuing to reject existing result files; freeze v4 before the new cohort.
+
 Work under `/home/zjy/code/hsliu`, on `codex-` branches. Pull main and freeze the SHA before measurement. Keep artifacts/cache outside source. Use `/home/zjy/code/hsliu/venvs/codex-qwen21-turbo-b300/bin/python`; verify imports and `findmnt -T` for environment/model/cache.
 
 Preparation retained both failed startup probes: missing FA4, then the default compile path failed with an Inductor `s28` name error. No valid performance/reference run occurred under those failed settings. The new protocol freezes eager execution before canonical runs; this preserves the full BF16 schedule and is not a measured speedup.
@@ -50,11 +52,13 @@ export PY=/home/zjy/code/hsliu/venvs/codex-qwen21-turbo-b300/bin/python
 export BASE=/home/zjy/code/hsliu/qwen21-turbo-b300-baseline
 export CAND=/home/zjy/code/hsliu/qwen21-turbo-b300-candidate
 export MODEL=$LAB/cache/huggingface/hub/models--Qwen--Qwen-Image-2.1-Turbo/snapshots/d65dbc9a7e8f6b5479e33dee6030eaab2a906509
-export CUDA_VISIBLE_DEVICES=0,1,2,3
+export CUDA_VISIBLE_DEVICES=2,5,6,7
 export OMP_NUM_THREADS=4
 ```
 
 The checkpoint VAE emits four channels. Preserve native RGBA throughout encoding and validation; do not silently discard transparency. PNG output compression is explicitly fixed to 100 (lossless, lowest PNG compression).
+
+For a new reproduction, create a new `guards-next` directory, copy the current `qwen21_turbo_b300.py`, `qwen21_turbo_quality.py` and `ltx25_b300.py` from `examples/`, record SHA256s and make them read-only **before a new canonical reference**. The historical `guards-v4` and measured manifests remain immutable. Current aggregate validation resolves `RUN/validation/result.json` correctly; never overwrite old references/result paths.
 
 The control package stays inference-library-free. The independent PNG quality example uses the prepared environment's Pillow, NumPy and scikit-image; freeze their versions as well.
 
@@ -66,16 +70,16 @@ The control package stays inference-library-free. The independent PNG quality ex
 4. Run initial TP1/U4 short-step profile before any performance code or configuration optimization. Distinguish text encoder, prefill/decode DiT, VAE, communication, copies and CPU/PNG/HTTP overhead. Diagnostic stage timers synchronize the GPU and are not E2E performance evidence.
 
 ```bash
-"$PY" "$LAB/guards-v3/qwen21_turbo_b300.py" \
+"$PY" "$LAB/guards-next/qwen21_turbo_b300.py" \
   --source-repo "$BASE" --model-path "$MODEL" --cache-root "$LAB/cache" \
-  --single-reference --tp 1 --ulysses 1 --output "$LAB/artifacts/reference/result.json"
+  --single-reference --tp 1 --ulysses 1 --output "$LAB/artifacts/reference-v4-gpu2-5-6-7/result.json"
 # Repeat in a fresh reference-repeat directory, then validate it independently.
-"$PY" "$LAB/guards-v3/qwen21_turbo_quality.py" \
-  --reference-manifest "$LAB/artifacts/reference/result.json" \
-  --candidate-manifest "$LAB/artifacts/reference-repeat/result.json" \
+"$PY" "$LAB/guards-next/qwen21_turbo_quality.py" \
+  --reference-manifest "$LAB/artifacts/reference-v4-gpu2-5-6-7/result.json" \
+  --candidate-manifest "$LAB/artifacts/reference-repeat-v4-gpu2-5-6-7/result.json" \
   --output "$LAB/artifacts/reference-repeatability.json"
 
-"$PY" "$LAB/guards-v3/qwen21_turbo_b300.py" \
+"$PY" "$LAB/guards-next/qwen21_turbo_b300.py" \
   --source-repo "$BASE" --model-path "$MODEL" --cache-root "$LAB/cache" \
   --tp 1 --ulysses 4 --diagnostic --profile-steps 2 \
   --output "$LAB/artifacts/initial-profile/result.json"
@@ -86,7 +90,7 @@ The control package stays inference-library-free. The independent PNG quality ex
 Compare the three declared TP/Ulysses cells, all using four workers. Keep VAE1/nontiled decode fixed to avoid decoder changes at this small shape. Each cell uses one server, six full-shape warmups and three complete measured groups; all nine images must pass canonical quality. Preserve every failed configuration. Rank the median of three group means, then freeze the lowest-latency eligible cell as `best.json`.
 
 ```bash
-"$PY" "$LAB/guards-v3/qwen21_turbo_b300.py" \
+"$PY" "$LAB/guards-next/qwen21_turbo_b300.py" \
   --source-repo "$BASE" --model-path "$MODEL" --cache-root "$LAB/cache" \
   --tp 1 --ulysses 4 --repetitions 3 --output "$LAB/artifacts/search/tp1-u4/result.json"
 # Repeat for TP2/U2 and TP4/U1, with independent output directories.
@@ -113,12 +117,12 @@ Freeze candidate code before final runs. Baseline/candidate share winner tuple, 
 ```bash
 # Fill the frozen winner values from best.json.
 export TP=1 ULYSSES=4
-BASELINE_CMD="$PY $LAB/guards-v3/qwen21_turbo_b300.py --source-repo $BASE --model-path $MODEL --cache-root $LAB/cache --tp $TP --ulysses $ULYSSES --output {result}"
-CANDIDATE_CMD="$PY $LAB/guards-v3/qwen21_turbo_b300.py --source-repo $CAND --model-path $MODEL --cache-root $LAB/cache --tp $TP --ulysses $ULYSSES --output {result}"
-QUALITY_CMD="$PY $LAB/guards-v3/qwen21_turbo_quality.py --reference-manifest $LAB/artifacts/reference/result.json --omnirsi-run --expected-parallel $TP,$ULYSSES --output {result}"
+BASELINE_CMD="$PY $LAB/guards-next/qwen21_turbo_b300.py --source-repo $BASE --model-path $MODEL --cache-root $LAB/cache --tp $TP --ulysses $ULYSSES --output {result}"
+CANDIDATE_CMD="$PY $LAB/guards-next/qwen21_turbo_b300.py --source-repo $CAND --model-path $MODEL --cache-root $LAB/cache --tp $TP --ulysses $ULYSSES --output {result}"
+QUALITY_CMD="$PY $LAB/guards-next/qwen21_turbo_quality.py --reference-manifest $LAB/artifacts/reference-v4-gpu2-5-6-7/result.json --omnirsi-run --expected-parallel $TP,$ULYSSES --output {result}"
 "$PY" -m omnirsi run \
   --repo "$BASE" --candidate-repo "$CAND" --repo-type vllm_omni \
-  --backend cuda --device-model B300 --device-ids 0,1,2,3 --python "$PY" \
+  --backend cuda --device-model B300 --device-ids 2,5,6,7 --python "$PY" \
   --scenario diffusion.image_generation --mode code --agent codex \
   --model Qwen/Qwen-Image-2.1-Turbo --model-revision d65dbc9a7e8f6b5479e33dee6030eaab2a906509 \
   --workload-id qwen21-turbo-1280x704-native8-cfg1-seeds42-44 \

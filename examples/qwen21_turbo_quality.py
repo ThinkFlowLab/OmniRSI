@@ -69,6 +69,25 @@ def validate(reference_path,candidate_path,expected_parallel=None):
     return {'verdict':'PASS' if all(x['verdict']=='PASS' for x in results) else 'FAIL','comparisons':results}
 
 
+def omnirsi_manifests(result_path):
+    # Validation result lives at RUN/validation/result.json, not RUN/result.json.
+    root=Path(result_path).resolve().parent.parent
+    repetitions=json.loads((root/'run.lock.json').read_text())['repetitions']
+    if isinstance(repetitions,bool) or not isinstance(repetitions,int) or repetitions<1:
+        raise ValueError('Positive repetition count required')
+    paths=[]
+    expected={f'trial-{index:03d}' for index in range(1,repetitions+1)}
+    for side in ['baseline','candidate']:
+        actual={p.name for p in (root/side).glob('trial-*') if p.is_dir()}
+        if actual!=expected:raise ValueError('Incomplete or extra trial coverage')
+        for name in sorted(expected):
+            trial=root/side/name
+            execution=json.loads((trial/'execution.json').read_text())
+            if execution['status']!='completed' or execution['returncode']!=0:raise ValueError('Incomplete trial')
+            paths.append(trial/'result.json')
+    return paths
+
+
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--reference-manifest',required=True)
@@ -80,15 +99,7 @@ def main():
     try:
         parallel=tuple(map(int,args.expected_parallel.split(','))) if args.expected_parallel else None
         if args.omnirsi_run:
-            root=Path(os.environ['OMNIRSI_RESULT_PATH']).parent
-            repetitions=json.loads((root/'run.lock.json').read_text())['repetitions']
-            paths=[]
-            for side in ['baseline','candidate']:
-                for index in range(1,repetitions+1):
-                    trial=root/side/f'trial-{index:03d}'
-                    execution=json.loads((trial/'execution.json').read_text())
-                    if execution['status']!='completed' or execution['returncode']!=0:raise ValueError('Incomplete trial')
-                    paths.append(trial/'result.json')
+            paths=omnirsi_manifests(os.environ['OMNIRSI_RESULT_PATH'])
         elif args.candidate_manifest:paths=[Path(args.candidate_manifest)]
         else:raise ValueError('Candidate manifest or complete OmniRSI run required')
         reports=[{'manifest':str(path),**validate(args.reference_manifest,path,parallel)} for path in paths]

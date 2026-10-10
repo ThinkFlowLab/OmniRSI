@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import sys
 import tempfile
+from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
 
@@ -16,6 +17,46 @@ import qwen21_turbo_quality as quality
 
 
 class QwenTurboTests(unittest.TestCase):
+    def test_run_validation_resolves_parent_of_validation_and_requires_all_trials(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp)/'run'
+            root.mkdir()
+            (root/'run.lock.json').write_text(json.dumps({'repetitions':1}))
+            for side in ['baseline','candidate']:
+                trial=root/side/'trial-001'
+                trial.mkdir(parents=True)
+                (trial/'execution.json').write_text(json.dumps({'status':'completed','returncode':0}))
+            paths=quality.omnirsi_manifests(root/'validation/result.json')
+            self.assertEqual(paths,[root/'baseline/trial-001/result.json',root/'candidate/trial-001/result.json'])
+            (root/'candidate/trial-002').mkdir()
+            with self.assertRaisesRegex(ValueError,'coverage'):
+                quality.omnirsi_manifests(root/'validation/result.json')
+
+    def test_precreated_runner_directory_preserves_failure_evidence(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp)
+            source=root/'source'
+            source.mkdir()
+            model=root/campaign.REVISION
+            model.mkdir()
+            (model/'model_index.json').write_text(json.dumps({'sample_sigmas':campaign.SIGMAS}))
+            output=root/'trial/result.json'
+            output.parent.mkdir()
+            args=SimpleNamespace(source_repo=str(source),output=str(output),cache_root=str(root/'cache'),
+                                 tp=1,ulysses=4,single_reference=False,model_path=str(model),diagnostic=False,
+                                 profile_steps=2,held_out=False,port=8098,startup_timeout=10,repetitions=1)
+            with patch.object(campaign.lifecycle,'source_snapshot',return_value={'snapshot_hash':'fixed'}), \
+                 patch.object(campaign,'protected_sources',return_value={'method':'fixed'}), \
+                 patch.object(campaign,'guards',return_value={'guard':'fixed'}), \
+                 patch.object(campaign,'dependencies',return_value={'version':'fixed'}), \
+                 patch.object(campaign,'model_assets',return_value='fixed'), \
+                 patch.object(campaign.lifecycle,'preflight',side_effect=ValueError('CPU probe failure')):
+                result=campaign.run(args)
+            self.assertEqual(result['status'],'failed')
+            self.assertEqual(result['error'],'CPU probe failure')
+            self.assertTrue(output.is_file())
+            self.assertTrue(result['source_integrity']['verified'])
+
     def test_native_schedule_and_diagnostic_are_distinct(self):
         full=campaign.protocol()
         short=campaign.protocol(True,2)
