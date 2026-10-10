@@ -1,10 +1,10 @@
 # Test plan
 
-## B300 × 4 / LTX-2.5 remote Codex campaign
+## B300 × 4 / Qwen-Image-2.1-Turbo local campaign
 
-Follow the [complete CLI Test plan](ltx25-b300-test-plan.md) for pinned source/model preparation, canonical A/V reference, conditional nine-cell TP/Ulysses/VAE search, external Codex invocation and five-group AB/BA acceptance. The goal is at least 20% lower E2E latency relative to a freshly remeasured quality-passing best parallel configuration. This authoring session has no B300 inference evidence.
+Follow the [active plan](qwen21-turbo-b300-test-plan.md): pin current main and the public Turbo snapshot, run the complete eight-step 720p-class workload, profile first with explicit short sigmas, qualify three four-card TP/Ulysses cells, iterate from measured bottlenecks, then require at least 20% lower synchronous PNG E2E latency with all-trial RGB/alpha accuracy checks.
 
-The included `examples/ltx25_b300.py` and `examples/ltx25_quality.py` preserve complete media, source/protocol/guard hashes and all trial quality evidence. CPU tests cover command/protocol contracts, drift, incomplete audio/video and owned Linux process cleanup; they do not certify LTX-2.5 parallel configurations.
+The trial helper and independent PNG guard freeze source, protected semantics, asset/guard hashes and dependency versions. CPU contracts do not certify GPU performance. The previous [LTX plan](ltx25-b300-test-plan.md) and its blocked preparation remain historical evidence.
 
 ## Local / CI contracts
 

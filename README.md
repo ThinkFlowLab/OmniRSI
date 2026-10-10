@@ -57,7 +57,9 @@ omnirsi report --run-id RUN_ID --output-dir runs
 
 详见 [完整 Quickstart](docs/quickstart.md)、[远程 Test plan](docs/test-plan.md)。
 
-[B300 四卡 / LTX-2.5 专项计划](docs/ltx25-b300-test-plan.md)提供完整 remote 命令：固定模型与 A/V 协议，搜索通过质量验证的 TP/Ulysses/VAE 配置，再调用外部 Codex 优化候选代码，以新的五组 AB/BA 验证端到端延迟下降是否达到 20%。这是待执行的验收目标，尚无 GPU 实测结果。
+[B300 四卡 / Qwen-Image-2.1-Turbo 性能计划](docs/qwen21-turbo-b300-test-plan.md)是当前 campaign：固定最新 main 和公开模型 revision，720p 档位、完整 8-step schedule、原生 RGBA PNG；先 profile，再选择质量合格的四卡并行配置并分层优化，以五组 AB/BA 验证至少 20% E2E latency 下降。性能与精度结论以实测报告为准。
+
+此前 [LTX-2.5 计划](docs/ltx25-b300-test-plan.md)及[授权阻塞记录](docs/ltx25-b300-local-status.md)保留为历史，当前任务不再依赖该模型授权。
 
 ## 知识库
 
