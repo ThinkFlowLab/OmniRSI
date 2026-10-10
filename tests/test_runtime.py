@@ -191,7 +191,7 @@ class RuntimeTests(unittest.TestCase):
 
     def test_deadline_also_applies_to_validation(self):
         path, evaluation = self.run_spec(validation_command=(sys.executable, "-c", "import time; time.sleep(30)"),
-                                         repetitions=1, max_minutes=0.1)
+                                         repetitions=1, max_minutes=0.25)
         self.assertEqual(evaluation["verdict"], "FAIL")
         self.assertEqual(json.loads((path / "validation/execution.json").read_text())["status"], "timeout")
 

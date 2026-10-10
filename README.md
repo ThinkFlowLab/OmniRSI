@@ -57,6 +57,8 @@ omnirsi report --run-id RUN_ID --output-dir runs
 
 详见 [完整 Quickstart](docs/quickstart.md)、[远程 Test plan](docs/test-plan.md)。
 
+[B300 四卡 / LTX-2.5 专项计划](docs/ltx25-b300-test-plan.md)提供完整 remote 命令：固定模型与 A/V 协议，搜索通过质量验证的 TP/Ulysses/VAE 配置，再调用外部 Codex 优化候选代码，以新的五组 AB/BA 验证端到端延迟下降是否达到 30%。这是待执行的验收目标，尚无 GPU 实测结果。
+
 ## 知识库
 
 ```bash

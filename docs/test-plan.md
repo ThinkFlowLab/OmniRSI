@@ -1,5 +1,11 @@
 # Test plan
 
+## B300 × 4 / LTX-2.5 remote Codex campaign
+
+Follow the [complete CLI Test plan](ltx25-b300-test-plan.md) for pinned source/model preparation, canonical A/V reference, conditional nine-cell TP/Ulysses/VAE search, external Codex invocation and five-group AB/BA acceptance. The goal is at least 30% lower E2E latency relative to a freshly remeasured quality-passing best parallel configuration. This authoring session has no B300 inference evidence.
+
+The included `examples/ltx25_b300.py` and `examples/ltx25_quality.py` preserve complete media, source/protocol/guard hashes and all trial quality evidence. CPU tests cover command/protocol contracts, drift, incomplete audio/video and owned Linux process cleanup; they do not certify LTX-2.5 parallel configurations.
+
 ## Local / CI contracts
 
 ```bash
@@ -10,6 +16,8 @@ python -m pip wheel --no-deps . -w dist
 ```
 
 The suite uses real subprocesses and temporary signed-off Git fixtures. It checks fresh result paths, AB/BA order, quality gaps, invalid/nonfinite metrics, no-gain/regression thresholds, source mutations (including restored changes), command failure, deadlines, cancellation, owned descendants and report escaping. CLI/catalog tests check filtering, source attribution, context applicability, dry-run and status/report. No model inference is part of these tests.
+
+Install FFmpeg/ffprobe to run the real CPU media integration check. Linux process-group tests require Linux; platform-specific skips are reported explicitly.
 
 ## Remote checks to run yourself
 
