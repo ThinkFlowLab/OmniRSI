@@ -1,0 +1,607 @@
+From 66366303115242f1c2e35a601d37dd7ca4a81033 Mon Sep 17 00:00:00 2001
+From: david6666666 <530634352@qq.com>
+Date: Sat, 10 Oct 2026 06:28:00 +0000
+Subject: [PATCH] perf: reduce Qwen image conditioning and Ulysses overhead on
+ Blackwell
+
+Signed-off-by: david6666666 <530634352@qq.com>
+---
+ .../diffusion/distributed/test_a2a_permute.py |  24 ++++
+ .../test_prompt_embedding_cache.py            |  89 +++++++++++++
+ .../qwen_image_21/test_request_geometry.py    |  31 +++++
+ .../qwen_image_21/test_shared_modulation.py   |  45 +++++++
+ .../diffusion/attention/parallel/factory.py   |  20 +++
+ .../diffusion/distributed/a2a_permute.py      |  10 +-
+ .../qwen_image_21/pipeline_qwen_image_21.py   |  53 +++++++-
+ .../qwen_image_21_transformer.py              | 117 +++++++++++++++---
+ 8 files changed, 367 insertions(+), 22 deletions(-)
+ create mode 100644 tests/diffusion/models/qwen_image_21/test_prompt_embedding_cache.py
+ create mode 100644 tests/diffusion/models/qwen_image_21/test_request_geometry.py
+ create mode 100644 tests/diffusion/models/qwen_image_21/test_shared_modulation.py
+
+diff --git a/tests/diffusion/distributed/test_a2a_permute.py b/tests/diffusion/distributed/test_a2a_permute.py
+index a74f98378..9487cb3d5 100644
+--- a/tests/diffusion/distributed/test_a2a_permute.py
++++ b/tests/diffusion/distributed/test_a2a_permute.py
+@@ -15,6 +15,7 @@ pytestmark = [pytest.mark.core_model, pytest.mark.cpu]
+ 
+ 
+ def test_jit_build_includes_cuda_headers_from_nvidia_wheels(tmp_path, monkeypatch) -> None:
++    monkeypatch.setattr(torch.utils.cpp_extension, "CUDA_HOME", None)
+     cu13_include = tmp_path / "nvidia" / "cu13" / "include"
+     nccl_include = tmp_path / "nvidia" / "nccl" / "include"
+     nccl_lib = tmp_path / "nvidia" / "nccl" / "lib" / "libnccl.so.2"
+@@ -41,6 +42,29 @@ def test_jit_build_includes_cuda_headers_from_nvidia_wheels(tmp_path, monkeypatc
+     assert load_kwargs["extra_ldflags"] == [str(nccl_lib)]
+ 
+ 
++def test_full_toolkit_excludes_conflicting_wheel_runtime_headers(tmp_path, monkeypatch) -> None:
++    toolkit = tmp_path / "cuda"
++    (toolkit / "include").mkdir(parents=True)
++    (toolkit / "include" / "cusparse.h").touch()
++    runtime = tmp_path / "nvidia" / "cu13" / "include"
++    runtime.mkdir(parents=True)
++    (runtime / "cuda_runtime_api.h").touch()
++    nccl = tmp_path / "nvidia" / "nccl"
++    (nccl / "include").mkdir(parents=True)
++    (nccl / "include" / "nccl.h").touch()
++    (nccl / "lib").mkdir()
++    (nccl / "lib" / "libnccl.so.2").touch()
++    kwargs = {}
++    monkeypatch.setattr(torch.utils.cpp_extension, "CUDA_HOME", str(toolkit))
++    monkeypatch.setattr(torch.utils.cpp_extension, "load", lambda **values: kwargs.update(values))
++    monkeypatch.setattr(a2a_permute.sysconfig, "get_paths", lambda: {"purelib": str(tmp_path)})
++    monkeypatch.setattr(a2a_permute.symm_mem, "set_backend", lambda value: None)
++    monkeypatch.setattr(a2a_permute, "_BUILT", False)
++    a2a_permute.ensure_a2a_permute_available()
++    assert str(runtime) not in kwargs["extra_include_paths"]
++    assert str(nccl / "include") in kwargs["extra_include_paths"]
++
++
+ @dataclass
+ class _FakeAllocation:
+     """Byte workspace stand-in that slices and reinterprets like ``symm_mem.empty()``."""
+diff --git a/tests/diffusion/models/qwen_image_21/test_prompt_embedding_cache.py b/tests/diffusion/models/qwen_image_21/test_prompt_embedding_cache.py
+new file mode 100644
+index 000000000..d5198f3d9
+--- /dev/null
++++ b/tests/diffusion/models/qwen_image_21/test_prompt_embedding_cache.py
+@@ -0,0 +1,89 @@
++# SPDX-License-Identifier: Apache-2.0
++# SPDX-FileCopyrightText: Copyright contributors to the vLLM-Omni project
++
++from types import SimpleNamespace
++from unittest.mock import Mock
++
++import pytest
++import torch
++from torch import nn
++
++from vllm_omni.diffusion.models.qwen_image_21.pipeline_qwen_image_21 import QwenImage21Pipeline
++
++pytestmark = [pytest.mark.core_model, pytest.mark.cpu, pytest.mark.diffusion]
++
++
++@pytest.fixture
++def pipeline():
++    result = QwenImage21Pipeline.__new__(QwenImage21Pipeline)
++    nn.Module.__init__(result)
++    result.text_encoder = SimpleNamespace(dtype=torch.float32, training=False)
++    result.processor = object()
++    result.od_config = SimpleNamespace(lora_config=None, enable_cpu_offload=False)
++    result.device = torch.device("cpu")
++    result.prompt_template_t2i = "{}"
++    result._drop_idx = 0
++    result._get_qwen_prompt_embeds = Mock(
++        side_effect=lambda *args, **kwargs: (
++            torch.arange(8, dtype=torch.float32).reshape(1, 2, 4),
++            torch.ones(1, 2, dtype=torch.long),
++            torch.zeros(1, 2, dtype=torch.bool),
++        )
++    )
++    return result
++
++
++@torch.no_grad()
++def test_cache_returns_request_owned_expansion_and_masks(pipeline):
++    first = pipeline.encode_prompt("A", num_images_per_prompt=2)
++    first[0].fill_(999)
++    second = pipeline.encode_prompt("A", num_images_per_prompt=1)
++    assert pipeline._get_qwen_prompt_embeds.call_count == 1
++    torch.testing.assert_close(second[0], torch.arange(8, dtype=torch.float32).reshape(1, 2, 4))
++    assert second[1].shape == (1, 2)
++    assert first[0].shape == (2, 2, 4)
++
++
++@torch.no_grad()
++def test_changed_prompt_limit_role_or_encoder_cannot_hit(pipeline):
++    pipeline.encode_prompt("A")
++    pipeline.encode_prompt("B")
++    pipeline.encode_prompt("A", max_sequence_length=10)
++    pipeline.encode_prompt("A", prompt_name="negative_prompt")
++    pipeline.text_encoder = SimpleNamespace(dtype=torch.float32, training=False)
++    pipeline.encode_prompt("A")
++    assert pipeline._get_qwen_prompt_embeds.call_count == 5
++
++
++@torch.no_grad()
++def test_edit_batch_and_training_bypass_and_invalidate(pipeline):
++    pipeline.encode_prompt("A")
++    pipeline.encode_prompt("A", images_per_prompt=[[object()]])
++    pipeline.encode_prompt("A", images_per_prompt=[[object()]])
++    pipeline.encode_prompt(["A", "B"])
++    pipeline.text_encoder.training = True
++    pipeline.encode_prompt("A")
++    pipeline.text_encoder.training = False
++    pipeline.encode_prompt("A")
++    assert pipeline._get_qwen_prompt_embeds.call_count == 6
++
++
++@torch.no_grad()
++def test_entry_limit_evicts_oldest_and_sleep_releases_tensors(pipeline):
++    for index in range(17):
++        pipeline.encode_prompt(str(index))
++    assert len(pipeline._prompt_embedding_cache) == 16
++    pipeline.encode_prompt("0")
++    assert pipeline._get_qwen_prompt_embeds.call_count == 18
++    pipeline.release_captured_graphs()
++    assert not pipeline._prompt_embedding_cache
++
++
++@torch.no_grad()
++def test_failed_limit_validation_is_not_cached(pipeline):
++    pipeline._get_qwen_prompt_embeds.side_effect = ValueError("invalid sequence limit")
++    for _ in range(2):
++        with pytest.raises(ValueError):
++            pipeline.encode_prompt("A", max_sequence_length=-1)
++    assert pipeline._get_qwen_prompt_embeds.call_count == 2
++    assert not pipeline._prompt_embedding_cache
+diff --git a/tests/diffusion/models/qwen_image_21/test_request_geometry.py b/tests/diffusion/models/qwen_image_21/test_request_geometry.py
+new file mode 100644
+index 000000000..53962f945
+--- /dev/null
++++ b/tests/diffusion/models/qwen_image_21/test_request_geometry.py
+@@ -0,0 +1,31 @@
++# SPDX-License-Identifier: Apache-2.0
++# SPDX-FileCopyrightText: Copyright contributors to the vLLM-Omni project
++
++from unittest.mock import Mock
++
++import pytest
++import torch
++from torch import nn
++
++from vllm_omni.diffusion.models.qwen_image_21.qwen_image_21_transformer import QwenImage21SequencePrepare
++
++pytestmark = [pytest.mark.core_model, pytest.mark.diffusion, pytest.mark.cpu]
++
++
++@torch.no_grad()
++def test_geometry_reuses_exact_positions_but_recomputes_latents():
++    frequency = torch.arange(6 * 64, dtype=torch.float32).reshape(6, 64).to(torch.complex64)
++    position = Mock(return_value=frequency)
++    module = QwenImage21SequencePrepare(nn.Identity(), position)
++    module._request_geometry = {}
++    mask = torch.tensor([[False, False, True]])
++    first = torch.randn(1, 4, 8)
++    second = torch.randn(1, 4, 8)
++    module(first, torch.randn(1, 2, 8), [(1, 2, 2)], mask, False)
++    result = module(second, None, [(1, 2, 2)], mask, True)
++    assert position.call_count == 1
++    torch.testing.assert_close(result[1], second, rtol=0, atol=0)
++    torch.testing.assert_close(result[3], frequency[2:], rtol=0, atol=0)
++    module._request_geometry = {}
++    module(first, torch.randn(1, 2, 8), [(1, 2, 2)], mask, False)
++    assert position.call_count == 2
+diff --git a/tests/diffusion/models/qwen_image_21/test_shared_modulation.py b/tests/diffusion/models/qwen_image_21/test_shared_modulation.py
+new file mode 100644
+index 000000000..f31d545a7
+--- /dev/null
++++ b/tests/diffusion/models/qwen_image_21/test_shared_modulation.py
+@@ -0,0 +1,45 @@
++# SPDX-License-Identifier: Apache-2.0
++# SPDX-FileCopyrightText: Copyright contributors to the vLLM-Omni project
++
++import pytest
++import torch
++from torch import nn
++
++from vllm_omni.diffusion.models.qwen_image_21.qwen_image_21_transformer import (
++    QwenImage21TransformerBlock,
++    _select_modulation_rows,
++)
++
++pytestmark = [pytest.mark.core_model, pytest.mark.diffusion, pytest.mark.cpu]
++
++
++class ToyAttention(nn.Module):
++    def forward(self, values, *args, **kwargs):
++        return values * 0.37
++
++
++@pytest.mark.parametrize("dtype", [torch.float32, torch.bfloat16])
++@pytest.mark.parametrize("mask", [False, True])
++@torch.no_grad()
++def test_shared_modulation_is_exact_and_request_owned(dtype, mask):
++    block = QwenImage21TransformerBlock.__new__(QwenImage21TransformerBlock)
++    nn.Module.__init__(block)
++    block.img_norm1 = nn.LayerNorm(128, elementwise_affine=False, eps=1e-6)
++    block.img_norm2 = nn.LayerNorm(128, elementwise_affine=False, eps=1e-6)
++    block.attn = ToyAttention()
++    block.img_mlp = nn.SiLU()
++    generator = torch.Generator().manual_seed(42)
++    values = torch.randn(2, 17, 128, generator=generator).to(dtype)
++    modulation = torch.randn(3 if mask else 2, 512, generator=generator).to(dtype)
++    local_mask = torch.tensor([False] * 5 + [True] * 12) if mask else None
++    scales_and_gates = modulation.chunk(4, dim=-1)
++    prepared = tuple(
++        1 + _select_modulation_rows(x, local_mask) if i % 2 == 0 else _select_modulation_rows(x, local_mask).tanh()
++        for i, x in enumerate(scales_and_gates)
++    )
++    originals = [x.clone() for x in prepared]
++    expected = block(values, modulation, None, target_token_mask=local_mask)
++    actual = block(values, modulation, None, target_token_mask=local_mask, prepared_modulation=prepared)
++    torch.testing.assert_close(actual, expected, rtol=0, atol=0)
++    for original, result in zip(originals, prepared):
++        torch.testing.assert_close(original, result, rtol=0, atol=0)
+diff --git a/vllm_omni/diffusion/attention/parallel/factory.py b/vllm_omni/diffusion/attention/parallel/factory.py
+index a7e41575b..a8299f372 100644
+--- a/vllm_omni/diffusion/attention/parallel/factory.py
++++ b/vllm_omni/diffusion/attention/parallel/factory.py
+@@ -3,6 +3,7 @@
+ 
+ from __future__ import annotations
+ 
++import torch
+ from vllm.logger import init_logger
+ 
+ from vllm_omni.diffusion.attention.parallel.allgather_kv import (
+@@ -19,6 +20,7 @@ from vllm_omni.diffusion.distributed.parallel_state import (
+     get_sp_group,
+ )
+ from vllm_omni.diffusion.forward_context import get_forward_context, is_forward_context_available
++from vllm_omni.platforms import current_omni_platform
+ 
+ logger = init_logger(__name__)
+ 
+@@ -40,12 +42,30 @@ def build_parallel_attention_strategy(
+     if not is_forward_context_available():
+         return NoParallelAttention()
+     cfg = get_forward_context().omni_diffusion_config
++    if cfg is None:
++        return NoParallelAttention()
+     p = cfg.parallel_config
+ 
+     ulysses_degree = getattr(p, "ulysses_degree", 1)
+     ring_degree = getattr(p, "ring_degree", 1)
+     allgather_degree = getattr(p, "allgather_degree", 1)
+     ulysses_a2a_permute = getattr(p, "ulysses_a2a_permute", False)
++    if (
++        getattr(cfg, "model_class_name", None) == "QwenImage21Pipeline"
++        and getattr(cfg, "enforce_eager", False)
++        and getattr(cfg, "dtype", None) == torch.bfloat16
++        and ulysses_degree > 1
++        and ring_degree == 1
++        and getattr(p, "ulysses_mode", "strict") == "strict"
++        and (getattr(cfg, "extras", None) or {}).get("qwen21_auto_symmem_ulysses", True)
++        and current_omni_platform.is_cuda()
++        and current_omni_platform.is_available()
++    ):
++        capability = current_omni_platform.get_device_capability()
++        if capability is not None and capability.major >= 10:
++            # Byte-preserving NVLink exchange avoids the repeated permutation
++            # and NCCL launch overhead of the stock Q/K/V/O path.
++            ulysses_a2a_permute = True
+ 
+     sp_configured = ulysses_degree > 1 or ring_degree > 1 or allgather_degree > 1
+     if not sp_configured:
+diff --git a/vllm_omni/diffusion/distributed/a2a_permute.py b/vllm_omni/diffusion/distributed/a2a_permute.py
+index d6ea05218..578539152 100644
+--- a/vllm_omni/diffusion/distributed/a2a_permute.py
++++ b/vllm_omni/diffusion/distributed/a2a_permute.py
+@@ -61,13 +61,21 @@ def _ensure_built() -> None:
+     with _BUILD_LOCK:
+         if _BUILT:
+             return
+-        from torch.utils.cpp_extension import load
++        from torch.utils.cpp_extension import CUDA_HOME, load
+ 
+         here = os.path.dirname(__file__)
+         src = os.path.join(here, "csrc", "a2a_permute.cu")
+         site_packages = sysconfig.get_paths()["purelib"]
+         nvidia_root = os.path.join(site_packages, "nvidia")
+         include_paths = glob.glob(os.path.join(nvidia_root, "*", "include"))
++        toolkit_include = os.path.join(CUDA_HOME, "include") if CUDA_HOME else None
++        if toolkit_include and os.path.isfile(os.path.join(toolkit_include, "cusparse.h")):
++            # cpp_extension adds the toolkit as a system include. A wheel's
++            # core CUDA headers would otherwise precede it and may have a
++            # different minor version than nvcc/CCCL.
++            include_paths = [
++                path for path in include_paths if not os.path.isfile(os.path.join(path, "cuda_runtime_api.h"))
++            ]
+         nccl_libs = glob.glob(os.path.join(nvidia_root, "nccl", "lib", "libnccl.so*"))
+         if not nccl_libs:
+             raise RuntimeError("a2a_permute: could not locate nvidia-nccl libnccl.so")
+diff --git a/vllm_omni/diffusion/models/qwen_image_21/pipeline_qwen_image_21.py b/vllm_omni/diffusion/models/qwen_image_21/pipeline_qwen_image_21.py
+index 6157b930c..9552faad2 100644
+--- a/vllm_omni/diffusion/models/qwen_image_21/pipeline_qwen_image_21.py
++++ b/vllm_omni/diffusion/models/qwen_image_21/pipeline_qwen_image_21.py
+@@ -7,6 +7,7 @@ import dataclasses
+ import json
+ import logging
+ import os
++from collections import OrderedDict
+ from collections.abc import Iterable
+ from typing import TYPE_CHECKING, Any, ClassVar
+ 
+@@ -316,6 +317,7 @@ class QwenImage21Pipeline(
+ 
+         The runner looks this up on the pipeline, not on the transformer.
+         """
++        self._prompt_embedding_cache = OrderedDict()
+         transformer = getattr(self, "transformer", None)
+         release = getattr(transformer, "release_captured_graphs", None)
+         if callable(release):
+@@ -729,13 +731,52 @@ class QwenImage21Pipeline(
+                 number of images that should be generated per prompt
+         """
+         prompt = [prompt] if isinstance(prompt, str) else prompt
+-
+-        prompt_embeds, prompt_embeds_mask, image_pad_mask = self._get_qwen_prompt_embeds(
+-            prompt,
+-            images_per_prompt,
+-            max_sequence_length=max_sequence_length,
+-            prompt_name=prompt_name,
++        cacheable = (
++            len(prompt) == 1
++            and isinstance(prompt[0], str)
++            and not (images_per_prompt is not None and any(images_per_prompt))
++            and not torch.is_grad_enabled()
++            and not self.text_encoder.training
++            and not getattr(self.od_config, "lora_config", None)
++            and not getattr(self.od_config, "enable_cpu_offload", False)
++        )
++        cache = getattr(self, "_prompt_embedding_cache", None)
++        if cache is None or not cacheable:
++            cache = self._prompt_embedding_cache = OrderedDict()
++        key = (
++            (
++                tuple(prompt),
++                max_sequence_length,
++                prompt_name,
++                id(self.text_encoder),
++                id(self.processor),
++                self.text_encoder.dtype,
++                str(self.device),
++                self.prompt_template_t2i,
++                self._drop_idx,
++            )
++            if cacheable
++            else None
+         )
++        encoded = cache.get(key) if cacheable else None
++        if encoded is None:
++            encoded = self._get_qwen_prompt_embeds(
++                prompt,
++                images_per_prompt,
++                max_sequence_length=max_sequence_length,
++                prompt_name=prompt_name,
++            )
++            size = sum(t.numel() * t.element_size() for t in encoded)
++            if cacheable and size <= 16 * 1024 * 1024:
++                cache[key] = encoded
++                while (
++                    len(cache) > 16
++                    or sum(t.numel() * t.element_size() for entry in cache.values() for t in entry) > 16 * 1024 * 1024
++                ):
++                    cache.popitem(last=False)
++        else:
++            cache.move_to_end(key)
++        prompt_embeds, prompt_embeds_mask, image_pad_mask = encoded
+ 
+         # Request-major expansion (A,A,B,B). ``repeat`` on the 2D masks would
+         # prepend a dimension and reshape to A,B,A,B — wrong pairing with embeds.
+diff --git a/vllm_omni/diffusion/models/qwen_image_21/qwen_image_21_transformer.py b/vllm_omni/diffusion/models/qwen_image_21/qwen_image_21_transformer.py
+index 2e82ee4d8..42a84c01e 100644
+--- a/vllm_omni/diffusion/models/qwen_image_21/qwen_image_21_transformer.py
++++ b/vllm_omni/diffusion/models/qwen_image_21/qwen_image_21_transformer.py
+@@ -662,10 +662,15 @@ class QwenImage21TransformerBlock(nn.Module):
+         kv_cache: dict[str, dict[str, torch.Tensor]] | None = None,
+         cache_branch: str = "cond",
+         cache_write_len: int | None = None,
++        prepared_modulation: tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor] | None = None,
+     ) -> torch.Tensor:
+-        mod1, mod2 = modulation.chunk(2, dim=-1)
+-
+-        img_modulated, img_gate1 = self._modulate(self.img_norm1(hidden_states), mod1, target_token_mask)
++        if prepared_modulation is None:
++            mod1, mod2 = modulation.chunk(2, dim=-1)
++            img_modulated, img_gate1 = self._modulate(self.img_norm1(hidden_states), mod1, target_token_mask)
++            img_gate1 = img_gate1.tanh()
++        else:
++            scale1, img_gate1, scale2, img_gate2 = prepared_modulation
++            img_modulated = self.img_norm1(hidden_states) * scale1
+         attn_output = self.attn(
+             img_modulated,
+             freqs,
+@@ -676,10 +681,14 @@ class QwenImage21TransformerBlock(nn.Module):
+             cache_branch=cache_branch,
+             cache_write_len=cache_write_len,
+         )
+-        hidden_states = hidden_states + img_gate1.tanh() * attn_output
++        hidden_states = hidden_states + img_gate1 * attn_output
+ 
+-        img_modulated2, img_gate2 = self._modulate(self.img_norm2(hidden_states), mod2, target_token_mask)
+-        hidden_states = hidden_states + img_gate2.tanh() * self.img_mlp(img_modulated2)
++        if prepared_modulation is None:
++            img_modulated2, img_gate2 = self._modulate(self.img_norm2(hidden_states), mod2, target_token_mask)
++            img_gate2 = img_gate2.tanh()
++        else:
++            img_modulated2 = self.img_norm2(hidden_states) * scale2
++        hidden_states = hidden_states + img_gate2 * self.img_mlp(img_modulated2)
+ 
+         if hidden_states.dtype == torch.float16:
+             hidden_states = hidden_states.clip(-65504, 65504)
+@@ -721,8 +730,15 @@ class QwenImage21SequencePrepare(nn.Module):
+             target image (sharded under SP via `_sp_plan`). In decode mode the prefix parts are empty.
+         """
+         batch_size = hidden_states.shape[0]
+-        image_pad_mask = self.expand_image_pad_mask(img_mask[0])
+-        rotary_emb = self.pos_embed(img_shapes, image_pad_mask, device=hidden_states.device)
++        geometry = getattr(self, "_request_geometry", None)
++        if geometry is not None and "image_pad_mask" in geometry:
++            image_pad_mask = geometry["image_pad_mask"]
++            rotary_emb = geometry["rotary_emb"]
++        else:
++            image_pad_mask = self.expand_image_pad_mask(img_mask[0])
++            rotary_emb = self.pos_embed(img_shapes, image_pad_mask, device=hidden_states.device)
++            if geometry is not None:
++                geometry.update(image_pad_mask=image_pad_mask, rotary_emb=rotary_emb)
+ 
+         target_tokens = math.prod(img_shapes[-1])
+         prefix_len = image_pad_mask.shape[0] - target_tokens
+@@ -1104,6 +1120,31 @@ class QwenImage21Transformer2DModel(CachedTransformer):
+         else:
+             txt_hidden_states = self.txt_in(encoder_hidden_states)
+ 
++        geometry = None
++        if (
++            kv_cache is not None
++            and batch_size == 1
++            and not torch.is_grad_enabled()
++            and not torch.compiler.is_compiling()
++        ):
++            signature = (
++                tuple(tuple(shape) for shape in layout),
++                cache_branch,
++                None if img_mask.is_inference() else img_mask._version,
++                None
++                if encoder_hidden_states_mask is None or encoder_hidden_states_mask.is_inference()
++                else encoder_hidden_states_mask._version,
++            )
++            previous = getattr(self, "_request_geometry_owner", None)
++            if (
++                previous is None
++                or previous[0] is not kv_cache
++                or previous[1] is not img_mask
++                or previous[2] != signature
++            ):
++                previous = self._request_geometry_owner = (kv_cache, img_mask, signature, {})
++            geometry = previous[3]
++        self.sequence_prepare._request_geometry = geometry
+         prefix_hidden_states, target_hidden_states, prefix_freqs, target_freqs = self.sequence_prepare(
+             hidden_states, txt_hidden_states, layout, img_mask, is_decode
+         )
+@@ -1126,8 +1167,17 @@ class QwenImage21Transformer2DModel(CachedTransformer):
+         prefix_len = prefix_hidden_states.shape[1]
+         sp_prefix_len = prefix_len if sp_active and not is_decode else 0
+ 
+-        image_pad_mask = self.sequence_prepare.expand_image_pad_mask(img_mask[0])
+-        _, target_token_mask = self.build_token_metadata(image_pad_mask, layout)
++        image_pad_mask = (
++            geometry["image_pad_mask"]
++            if geometry is not None
++            else self.sequence_prepare.expand_image_pad_mask(img_mask[0])
++        )
++        if geometry is not None and "token_metadata" in geometry:
++            image_ids, target_token_mask = geometry["token_metadata"]
++        else:
++            image_ids, target_token_mask = self.build_token_metadata(image_pad_mask, layout)
++            if geometry is not None:
++                geometry["token_metadata"] = (image_ids, target_token_mask)
+ 
+         timestep = timestep.to(hidden_states.dtype)
+         if self.causal_condition:
+@@ -1155,7 +1205,15 @@ class QwenImage21Transformer2DModel(CachedTransformer):
+         # line up, in order, with the non-image positions of the vision-language sequence — the two are interleaved,
+         # so the mask cannot be sliced off as a prefix.
+         joint_key_valid = None
+-        if encoder_hidden_states_mask is not None:
++        cached_key_valid = (
++            geometry is not None
++            and geometry.get("key_valid_mask_source") is encoder_hidden_states_mask
++            and "key_valid" in geometry
++            and geometry.get("sp_padding") == sp_padding
++        )
++        if cached_key_valid:
++            joint_key_valid = geometry["key_valid"]
++        elif encoder_hidden_states_mask is not None:
+             joint_key_valid = torch.ones(
+                 batch_size, image_pad_mask.shape[0], dtype=torch.bool, device=hidden_states.device
+             )
+@@ -1163,18 +1221,28 @@ class QwenImage21Transformer2DModel(CachedTransformer):
+             vlm_text_positions = ~img_mask[0][: encoder_hidden_states_mask.shape[1]]
+             joint_key_valid[:, text_positions] = encoder_hidden_states_mask.bool()[:, vlm_text_positions]
+ 
+-        image_ids, _ = self.build_token_metadata(image_pad_mask, layout)
+         full_seq_len = image_pad_mask.shape[0]
+         padded_seq_len = full_seq_len + sp_padding
+-        if sp_padding and joint_key_valid is None:
++        if not cached_key_valid and sp_padding and joint_key_valid is None:
+             joint_key_valid = torch.ones(batch_size, full_seq_len, dtype=torch.bool, device=hidden_states.device)
+-        if sp_padding:
++        if not cached_key_valid and sp_padding:
+             joint_key_valid = F.pad(joint_key_valid, (0, sp_padding), value=False)
+ 
+-        has_padding = joint_key_valid is not None and not bool(joint_key_valid.all())
++        has_padding = (
++            geometry["has_padding"]
++            if cached_key_valid
++            else joint_key_valid is not None and not bool(joint_key_valid.all())
++        )
+         if not has_padding:
+             # Match Diffusers and use the same mask-free dispatch in eager and graph decode.
+             joint_key_valid = None
++        if geometry is not None and not cached_key_valid:
++            geometry.update(
++                key_valid=joint_key_valid,
++                key_valid_mask_source=encoder_hidden_states_mask,
++                has_padding=has_padding,
++                sp_padding=sp_padding,
++            )
+         attn_metadata: AttentionMetadata | None = None
+         cache_write_len: int | None = None
+         if is_decode:
+@@ -1197,6 +1265,22 @@ class QwenImage21Transformer2DModel(CachedTransformer):
+             elif joint_key_valid is not None:
+                 attn_metadata = AttentionMetadata(attn_mask=joint_key_valid)
+ 
++        block_extras = {}
++        if (
++            joint_hidden_states.device.type == "cuda"
++            and not torch.is_grad_enabled()
++            and not torch.compiler.is_compiling()
++            and self._decode_graph_manager is None
++        ):
++            # The model shares one modulation across all blocks. Materialize
++            # its token selection/scale/tanh once per step, using the same ops.
++            scale1, gate1, scale2, gate2 = modulation.chunk(4, dim=-1)
++            block_extras["prepared_modulation"] = (
++                1 + _select_modulation_rows(scale1, local_mask),
++                _select_modulation_rows(gate1, local_mask).tanh(),
++                1 + _select_modulation_rows(scale2, local_mask),
++                _select_modulation_rows(gate2, local_mask).tanh(),
++            )
+         for index_block, block in enumerate(self.transformer_blocks):
+             block_kv_cache = kv_cache[index_block] if kv_cache is not None else None
+             joint_hidden_states = block(
+@@ -1210,6 +1294,7 @@ class QwenImage21Transformer2DModel(CachedTransformer):
+                 kv_cache=block_kv_cache,
+                 cache_branch=cache_branch,
+                 cache_write_len=cache_write_len,
++                **block_extras,
+             )
+ 
+         if (
+@@ -1276,6 +1361,8 @@ class QwenImage21Transformer2DModel(CachedTransformer):
+         """Drop captured decode graphs and their static buffers (e.g. sleep mode)."""
+         if self._decode_graph_manager is not None:
+             self._decode_graph_manager.clear()
++        self._request_geometry_owner = None
++        self.sequence_prepare._request_geometry = None
+ 
+     def load_weights(self, weights: Iterable[tuple[str, torch.Tensor]]) -> set[str]:
+         stacked_params_mapping = [
+-- 
+2.43.0
+

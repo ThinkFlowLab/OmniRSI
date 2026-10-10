@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "id": "cuda",
+  "inspection_tool": "nvidia-smi",
+  "compatibility": "unverified",
+  "notes": [
+    "Tool availability is not model/runtime compatibility evidence.",
+    "Repository-specific backend experience belongs in its scoped knowledge folder."
+  ]
+}

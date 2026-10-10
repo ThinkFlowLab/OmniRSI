@@ -1,0 +1,291 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="3810" viewBox="0 0 2400 3810" role="img" aria-labelledby="title description">
+<title id="title">GPU 推理系统优化蜂群 · Codex / 三方 Agent 完整流程图</title>
+<desc id="description">由四张流程截图重组。包含人类守门、三类指挥角色、H200/B200 四种 GPU 部署形态、Phase 0–5 优化闭环、六组二十一席专家、五级验证、经验资产与 Skill Hub 分发复用。所有角色均由 Codex 或三方 Agent 承担；发布与复用为概念流程。</desc>
+<metadata>Hardware references: https://www.nvidia.com/en-us/data-center/h200/ ; https://www.nvidia.com/en-us/data-center/dgx-b200/ ; https://docs.nvidia.com/cuda/blackwell-tuning-guide/ . Reorganized from image001.png–image004.png; created 2026-10-08.</metadata>
+<defs>
+<marker id="arrow-line" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#63748A"/></marker>
+<marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#2864D9"/></marker>
+<marker id="arrow-purple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#7747C7"/></marker>
+<marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#368429"/></marker>
+<marker id="arrow-pink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#CA3680"/></marker>
+<marker id="arrow-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#D74848"/></marker>
+</defs>
+<g font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif">
+<rect width="2400" height="3810" fill="#FFFFFF"/>
+<rect x="130" y="60" width="8" height="99" rx="4" fill="#2864D9"/>
+<text x="161" y="105" font-size="49" font-weight="700" fill="#17263D" text-anchor="start">GPU 推理系统优化蜂群 · 完整流程图</text>
+<text x="163" y="149" font-size="27" font-weight="400" fill="#53657D" text-anchor="start">Codex / 三方 Agent  ×  H200 / B200  ×  分层验证  ×  经验沉淀  ×  Skill Hub</text>
+<text x="2258" y="96" font-size="22" font-weight="700" fill="#2864D9" text-anchor="end">RSI / SWARMFLOW</text>
+<text x="2258" y="132" font-size="23" font-weight="400" fill="#53657D" text-anchor="end">优化 → 验证 → 沉淀 → 复用</text>
+<rect x="330" y="195" width="1740" height="120" rx="18" fill="#FFF8E8" stroke="#BE7516" stroke-width="2"/>
+<text x="1200" y="241" font-size="32" font-weight="700" fill="#BE7516" text-anchor="middle">组织 L0 · 人类工程师 / 守门层</text>
+<text x="1200" y="280" font-size="26" font-weight="400" fill="#17263D" text-anchor="middle">定义优化目标与系统边界；审批数值语义、并发行为、线上风险等关键改动；保留终审权。</text>
+<path d="M 1200 315 V 355" fill="none" stroke="#63748A" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow-line)"/>
+<text x="1230" y="342" font-size="22" font-weight="400" fill="#53657D" text-anchor="start">目标 / 约束下发 · 关键改动审批</text>
+<rect x="260" y="365" width="1880" height="238" rx="18" fill="#F0F6FF" stroke="#2864D9" stroke-width="2"/>
+<text x="288" y="409" font-size="29" font-weight="700" fill="#2864D9" text-anchor="start">组织 L1 · 指挥层（3 类常驻角色）</text>
+<text x="288" y="444" font-size="22" font-weight="400" fill="#53657D" text-anchor="start">执行主体：Codex / 三方 Agent；同一 Agent 可按任务切换角色，按需调度专家。</text>
+<rect x="288" y="461" width="592" height="117" rx="13" fill="#FFFFFF" stroke="#2864D9" stroke-width="2"/>
+<text x="312" y="497" font-size="27" font-weight="700" fill="#2864D9" text-anchor="start">Swarm Lead · 蜂群总控</text>
+<text x="312" y="530" font-size="23" font-weight="400" fill="#17263D" text-anchor="start">任务拆解 / 专家调度 / 迭代状态机</text>
+<text x="312" y="559" font-size="23" font-weight="400" fill="#17263D" text-anchor="start">跨组协调与冲突仲裁 → 任务 DAG / 迭代看板</text>
+<rect x="904" y="461" width="592" height="117" rx="13" fill="#FFFFFF" stroke="#2864D9" stroke-width="2"/>
+<text x="928" y="497" font-size="27" font-weight="700" fill="#2864D9" text-anchor="start">Optimization Planner · 优化规划</text>
+<text x="928" y="530" font-size="23" font-weight="400" fill="#17263D" text-anchor="start">AGENTS.md / Skill 先验 + GPU 能力模型</text>
+<text x="928" y="559" font-size="23" font-weight="400" fill="#17263D" text-anchor="start">收益与成本评估 → 路线图 / 优先级 / 假设队列</text>
+<rect x="1520" y="461" width="592" height="117" rx="13" fill="#FFFFFF" stroke="#2864D9" stroke-width="2"/>
+<text x="1544" y="497" font-size="27" font-weight="700" fill="#2864D9" text-anchor="start">Experiment Controller · 实验总控</text>
+<text x="1544" y="530" font-size="23" font-weight="400" fill="#17263D" text-anchor="start">登记实验 / 控制变量 / 证据审计</text>
+<text x="1544" y="559" font-size="23" font-weight="400" fill="#17263D" text-anchor="start">一次实验回答一个问题 → 实验计划 / 归因记录</text>
+<path d="M 1200 603 V 643" fill="none" stroke="#63748A" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow-line)"/>
+<text x="1230" y="630" font-size="22" font-weight="400" fill="#53657D" text-anchor="start">选择目标硬件形态 · 调度专家</text>
+<rect x="130" y="653" width="2140" height="195" rx="18" fill="#F2F9ED" stroke="#368429" stroke-width="2"/>
+<text x="158" y="697" font-size="29" font-weight="700" fill="#368429" text-anchor="start">目标硬件 · NVIDIA GPU（H200 / B200）｜四种部署形态，各有配置档案</text>
+<rect x="150" y="718" width="510" height="108" rx="13" fill="#FFFFFF" stroke="#368429" stroke-width="2"/>
+<text x="174" y="754" font-size="25" font-weight="700" fill="#368429" text-anchor="start">单卡 · H200 / B200</text>
+<text x="174" y="787" font-size="22" font-weight="400" fill="#17263D" text-anchor="start">HBM / 算子融合 / KV Cache / 量化</text>
+<text x="174" y="816" font-size="22" font-weight="400" fill="#17263D" text-anchor="start">CUDA Graph / Triton / batch 与 seq</text>
+<rect x="680" y="718" width="510" height="108" rx="13" fill="#FFFFFF" stroke="#368429" stroke-width="2"/>
+<text x="704" y="754" font-size="25" font-weight="700" fill="#368429" text-anchor="start">单机多卡 · 8× H200 / B200</text>
+<text x="704" y="787" font-size="22" font-weight="400" fill="#17263D" text-anchor="start">NVLink / NVSwitch · TP / EP / PP</text>
+<text x="704" y="816" font-size="22" font-weight="400" fill="#17263D" text-anchor="start">显存预算 / 通信重叠 / PD 共置或分离</text>
+<rect x="1210" y="718" width="510" height="108" rx="13" fill="#FFFFFF" stroke="#368429" stroke-width="2"/>
+<text x="1234" y="754" font-size="25" font-weight="700" fill="#368429" text-anchor="start">多机多卡 · N×8 GPU</text>
+<text x="1234" y="787" font-size="22" font-weight="400" fill="#17263D" text-anchor="start">InfiniBand / RoCE · 跨节点并行</text>
+<text x="1234" y="816" font-size="22" font-weight="400" fill="#17263D" text-anchor="start">NCCL / RDMA / KV 传输 / 拓扑映射</text>
+<rect x="1740" y="718" width="510" height="108" rx="13" fill="#FFFFFF" stroke="#368429" stroke-width="2"/>
+<text x="1764" y="754" font-size="25" font-weight="700" fill="#368429" text-anchor="start">超节点 / 集群 · GPU Pods</text>
+<text x="1764" y="787" font-size="22" font-weight="400" fill="#17263D" text-anchor="start">大规模 MoE / EP / PD 分离</text>
+<text x="1764" y="816" font-size="22" font-weight="400" fill="#17263D" text-anchor="start">跨域拓扑 / 调度 / 故障恢复 / SLO</text>
+<path d="M 795 848 V 930" fill="none" stroke="#63748A" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow-line)"/>
+<text x="821" y="884" font-size="22" font-weight="400" fill="#53657D" text-anchor="start">硬件能力 + 负载画像 → 优化输入</text>
+<text x="170" y="918" font-size="30" font-weight="700" fill="#17263D" text-anchor="start">核心 SwarmFlow · 迭代内循环（Phase 0 → 5）</text>
+<rect x="170" y="940" width="1250" height="126" rx="18" fill="#F0F6FF" stroke="#2864D9" stroke-width="2"/>
+<circle cx="211" cy="977" r="22" fill="#2864D9"/>
+<text x="211" y="985" font-size="24" font-weight="700" fill="#FFFFFF" text-anchor="middle">0</text>
+<text x="252" y="986" font-size="29" font-weight="700" fill="#2864D9" text-anchor="start">环境测绘</text>
+<text x="252" y="1014" font-size="24" font-weight="400" fill="#17263D" text-anchor="start">实测 GPU 算力 / HBM / 互联矩阵；记录 GPU、驱动、CUDA、NCCL 与引擎版本。</text>
+<text x="252" y="1042" font-size="24" font-weight="400" fill="#17263D" text-anchor="start">产出：硬件能力卡、拓扑画像、负载画像；同形态部署复用已验证配置。</text>
+<path d="M 795 1066 V 1090" fill="none" stroke="#63748A" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow-line)"/>
+<rect x="170" y="1100" width="1250" height="108" rx="18" fill="#F0F6FF" stroke="#2864D9" stroke-width="2"/>
+<circle cx="211" cy="1137" r="22" fill="#2864D9"/>
+<text x="211" y="1145" font-size="24" font-weight="700" fill="#FFFFFF" text-anchor="middle">1</text>
+<text x="252" y="1146" font-size="29" font-weight="700" fill="#2864D9" text-anchor="start">基线建立</text>
+<text x="252" y="1174" font-size="24" font-weight="400" fill="#17263D" text-anchor="start">跑通可用版本 → 固定数据、模型与负载 → 采集端到端 SLO、精度与完整 Trace。</text>
+<path d="M 795 1208 V 1232" fill="none" stroke="#63748A" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow-line)"/>
+<rect x="170" y="1242" width="1250" height="108" rx="18" fill="#F0F6FF" stroke="#2864D9" stroke-width="2"/>
+<circle cx="211" cy="1279" r="22" fill="#2864D9"/>
+<text x="211" y="1287" font-size="24" font-weight="700" fill="#FFFFFF" text-anchor="middle">2</text>
+<text x="252" y="1288" font-size="29" font-weight="700" fill="#2864D9" text-anchor="start">瓶颈诊断</text>
+<text x="252" y="1316" font-size="24" font-weight="400" fill="#17263D" text-anchor="start">Trace Analyst + Microbenchmark → 按吞吐损失排序的瓶颈清单 → 交优化规划师。</text>
+<path d="M 795 1350 V 1380" fill="none" stroke="#63748A" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow-line)"/>
+<rect x="130" y="1390" width="1330" height="826" rx="18" fill="#F6F2FC" stroke="#7747C7" stroke-width="2"/>
+<text x="158" y="1434" font-size="29" font-weight="700" fill="#7747C7" text-anchor="start">Phase 3 · 优化迭代循环（核心 · 可嵌套并行）</text>
+<rect x="210" y="1465" width="1170" height="110" rx="13" fill="#FFFFFF" stroke="#7747C7" stroke-width="2"/>
+<rect x="229" y="1481" width="73" height="31" rx="15" fill="#7747C7" stroke="#7747C7" stroke-width="2"/>
+<text x="265" y="1505" font-size="23" font-weight="700" fill="#FFFFFF" text-anchor="middle">3.1</text>
+<text x="320" y="1507" font-size="27" font-weight="700" fill="#7747C7" text-anchor="start">假设生成与登记</text>
+<text x="320" y="1537" font-size="23" font-weight="400" fill="#17263D" text-anchor="start">瓶颈清单 + AGENTS.md / Skill 经验 → 生成候选假设，写明预期收益与风险。</text>
+<text x="320" y="1566" font-size="23" font-weight="400" fill="#17263D" text-anchor="start">Experiment Controller 绑定假设、变量、代码版本和证据；一次只回答一个问题。</text>
+<rect x="210" y="1607" width="1170" height="138" rx="13" fill="#FFFFFF" stroke="#7747C7" stroke-width="2"/>
+<rect x="229" y="1623" width="73" height="31" rx="15" fill="#7747C7" stroke="#7747C7" stroke-width="2"/>
+<text x="265" y="1647" font-size="23" font-weight="700" fill="#FFFFFF" text-anchor="middle">3.2</text>
+<text x="320" y="1649" font-size="27" font-weight="700" fill="#7747C7" text-anchor="start">专家实施修改（可多假设并行）</text>
+<text x="320" y="1679" font-size="23" font-weight="400" fill="#17263D" text-anchor="start">按需调度算子 / 并行 / 通信 / 引擎 / 量化 / 显存专家，隔离分支与资源。</text>
+<text x="320" y="1708" font-size="23" font-weight="400" fill="#17263D" text-anchor="start">CUDA / Triton / CUTLASS、NCCL、KV Cache、CUDA Graph 等按瓶颈优化。</text>
+<text x="320" y="1737" font-size="23" font-weight="400" fill="#17263D" text-anchor="start">涉及数值语义、并发行为或线上风险的关键修改 → 标记人类审批。</text>
+<rect x="210" y="1777" width="1170" height="124" rx="13" fill="#FFFFFF" stroke="#7747C7" stroke-width="2"/>
+<rect x="229" y="1793" width="73" height="31" rx="15" fill="#7747C7" stroke="#7747C7" stroke-width="2"/>
+<text x="265" y="1817" font-size="23" font-weight="700" fill="#FFFFFF" text-anchor="middle">3.3</text>
+<text x="320" y="1819" font-size="27" font-weight="700" fill="#7747C7" text-anchor="start">局部验证 · 验证 L0–L2</text>
+<text x="320" y="1849" font-size="23" font-weight="400" fill="#17263D" text-anchor="start">算子正确性 / 微基准 / 场景隔离：Prefill、KV Transfer、Decode 分别验证。</text>
+<text x="320" y="1878" font-size="23" font-weight="400" fill="#17263D" text-anchor="start">未通过 → 带归因回到 3.1；局部验证通过，才进入全量验证。</text>
+<rect x="210" y="1933" width="1170" height="124" rx="13" fill="#FFFFFF" stroke="#7747C7" stroke-width="2"/>
+<rect x="229" y="1949" width="73" height="31" rx="15" fill="#7747C7" stroke="#7747C7" stroke-width="2"/>
+<text x="265" y="1973" font-size="23" font-weight="700" fill="#FFFFFF" text-anchor="middle">3.4</text>
+<text x="320" y="1975" font-size="27" font-weight="700" fill="#7747C7" text-anchor="start">全量验证 · 验证 L3–L4</text>
+<text x="320" y="2005" font-size="23" font-weight="400" fill="#17263D" text-anchor="start">评测集 + 逐请求输出差异 → 模型精度；真实负载下测吞吐、延迟与稳定性。</text>
+<text x="320" y="2034" font-size="23" font-weight="400" fill="#17263D" text-anchor="start">确认局部收益能转化为端到端收益：microbench 加速 ≠ 服务收益。</text>
+<path d="M 795 1575 V 1597" fill="none" stroke="#63748A" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow-line)"/>
+<path d="M 795 1745 V 1767" fill="none" stroke="#63748A" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow-line)"/>
+<path d="M 795 1901 V 1923" fill="none" stroke="#63748A" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow-line)"/>
+<path d="M 795 2057 V 2072" fill="none" stroke="#63748A" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow-line)"/>
+<polygon points="795,2082 1080,2137 795,2192 510,2137" fill="#FFF8E8" stroke="#BE7516" stroke-width="2"/>
+<text x="795" y="2132" font-size="28" font-weight="700" fill="#BE7516" text-anchor="middle">3.5 裁决</text>
+<text x="795" y="2168" font-size="23" font-weight="400" fill="#53657D" text-anchor="middle">保留 / 修正 / 否决</text>
+<path d="M 510 2137 H 151 V 1448 H 330 V 1455" fill="none" stroke="#7747C7" stroke-width="3" stroke-linejoin="round" stroke-dasharray="9 7" marker-end="url(#arrow-purple)"/>
+<text x="223" y="2119" font-size="22" font-weight="400" fill="#7747C7" text-anchor="start">修正 → 3.1</text>
+<path d="M 210 1837 H 184 V 1520 H 200" fill="none" stroke="#D74848" stroke-width="3" stroke-linejoin="round" stroke-dasharray="9 7" marker-end="url(#arrow-red)"/>
+<text x="215" y="1768" font-size="21" font-weight="400" fill="#D74848" text-anchor="start">失败（带归因）</text>
+<path d="M 795 2192 V 2250" fill="none" stroke="#368429" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow-green)"/>
+<text x="822" y="2240" font-size="22" font-weight="400" fill="#368429" text-anchor="start">保留 → 合并主线</text>
+<rect x="170" y="2260" width="1250" height="140" rx="18" fill="#FFF8E8" stroke="#BE7516" stroke-width="2"/>
+<circle cx="211" cy="2297" r="22" fill="#BE7516"/>
+<text x="211" y="2305" font-size="24" font-weight="700" fill="#FFFFFF" text-anchor="middle">4</text>
+<text x="252" y="2306" font-size="29" font-weight="700" fill="#BE7516" text-anchor="start">验收上线</text>
+<text x="252" y="2334" font-size="24" font-weight="400" fill="#17263D" text-anchor="start">Accuracy Guardian 精度回归 + Reliability Auditor 长稳 / 故障注入。</text>
+<text x="252" y="2362" font-size="24" font-weight="400" fill="#17263D" text-anchor="start">Release Guard 输出风险清单 → 人类审批关键改动 → 灰度发布 / 可回滚。</text>
+<text x="252" y="2390" font-size="24" font-weight="400" fill="#17263D" text-anchor="start">验收以真实负载与 SLO 为准；记录回归结果、适用边界与回滚方案。</text>
+<path d="M 795 2400 V 2425" fill="none" stroke="#63748A" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow-line)"/>
+<rect x="170" y="2435" width="1250" height="114" rx="18" fill="#F2F9ED" stroke="#368429" stroke-width="2"/>
+<circle cx="211" cy="2472" r="22" fill="#368429"/>
+<text x="211" y="2480" font-size="24" font-weight="700" fill="#FFFFFF" text-anchor="middle">5</text>
+<text x="252" y="2481" font-size="29" font-weight="700" fill="#368429" text-anchor="start">经验沉淀</text>
+<text x="252" y="2509" font-size="24" font-weight="400" fill="#17263D" text-anchor="start">Experience Curator 更新 AGENTS.md / Skill / Swarm Skill；归档配置、证据与反例。</text>
+<text x="252" y="2537" font-size="24" font-weight="400" fill="#17263D" text-anchor="start">上线后持续监控 → 回到 Phase 2 开启下一轮迭代（外循环）。</text>
+<path d="M 170 2492 H 114 V 1296 H 160" fill="none" stroke="#368429" stroke-width="3" stroke-linejoin="round" stroke-dasharray="9 7" marker-end="url(#arrow-green)"/>
+<text x="180" y="2425" font-size="21" font-weight="400" fill="#368429" text-anchor="start">监控反馈 → Phase 2</text>
+<rect x="1540" y="940" width="730" height="748" rx="18" fill="#F6F2FC" stroke="#7747C7" stroke-width="2"/>
+<text x="1568" y="984" font-size="29" font-weight="700" fill="#7747C7" text-anchor="start">组织 L2 · 专家层（6 组 / 21 席）</text>
+<text x="1568" y="1019" font-size="22" font-weight="400" fill="#53657D" text-anchor="start">角色由 Codex / 三方 Agent 按需激活，可并行执行。</text>
+<rect x="1562" y="1039" width="686" height="94" rx="13" fill="#FFFFFF" stroke="#7747C7" stroke-width="2"/>
+<text x="1586" y="1071" font-size="25" font-weight="700" fill="#7747C7" text-anchor="start">① 硬件感知组 · 3 席</text>
+<text x="1586" y="1100" font-size="22" font-weight="400" fill="#17263D" text-anchor="start">Hardware Analyst / Topology Mapper</text>
+<text x="1586" y="1125" font-size="22" font-weight="400" fill="#17263D" text-anchor="start">Workload Analyst</text>
+<rect x="1562" y="1144" width="686" height="94" rx="13" fill="#FFFFFF" stroke="#7747C7" stroke-width="2"/>
+<text x="1586" y="1176" font-size="25" font-weight="700" fill="#7747C7" text-anchor="start">② 模型与策略组 · 4 席</text>
+<text x="1586" y="1205" font-size="22" font-weight="400" fill="#17263D" text-anchor="start">Model Analyst / Parallel Strategy</text>
+<text x="1586" y="1230" font-size="22" font-weight="400" fill="#17263D" text-anchor="start">Memory Budget / Quantization</text>
+<rect x="1562" y="1249" width="686" height="94" rx="13" fill="#FFFFFF" stroke="#7747C7" stroke-width="2"/>
+<text x="1586" y="1281" font-size="25" font-weight="700" fill="#7747C7" text-anchor="start">③ 算子与执行组 · 3 席</text>
+<text x="1586" y="1310" font-size="22" font-weight="400" fill="#17263D" text-anchor="start">Kernel Expert / Correctness Validator</text>
+<text x="1586" y="1335" font-size="22" font-weight="400" fill="#17263D" text-anchor="start">Experience Curator</text>
+<rect x="1562" y="1354" width="686" height="94" rx="13" fill="#FFFFFF" stroke="#7747C7" stroke-width="2"/>
+<text x="1586" y="1386" font-size="25" font-weight="700" fill="#7747C7" text-anchor="start">④ 引擎与运行时组 · 4 席</text>
+<text x="1586" y="1415" font-size="22" font-weight="400" fill="#17263D" text-anchor="start">Engine Tuner / PD Architect</text>
+<text x="1586" y="1440" font-size="22" font-weight="400" fill="#17263D" text-anchor="start">Concurrency / Communication</text>
+<rect x="1562" y="1459" width="686" height="94" rx="13" fill="#FFFFFF" stroke="#7747C7" stroke-width="2"/>
+<text x="1586" y="1491" font-size="25" font-weight="700" fill="#7747C7" text-anchor="start">⑤ 验证与反馈组 · 5 席</text>
+<text x="1586" y="1520" font-size="22" font-weight="400" fill="#17263D" text-anchor="start">Microbenchmark / Trace Analyst / Accuracy</text>
+<text x="1586" y="1545" font-size="22" font-weight="400" fill="#17263D" text-anchor="start">E2E / Reliability</text>
+<rect x="1562" y="1564" width="686" height="94" rx="13" fill="#FFFFFF" stroke="#7747C7" stroke-width="2"/>
+<text x="1586" y="1596" font-size="25" font-weight="700" fill="#7747C7" text-anchor="start">⑥ 交付与知识组 · 2 席</text>
+<text x="1586" y="1625" font-size="22" font-weight="400" fill="#17263D" text-anchor="start">Release Guard / Knowledge Curator</text>
+<path d="M 1540 1522 H 1508 V 1658 H 1390" fill="none" stroke="#2864D9" stroke-width="3" stroke-linejoin="round" stroke-dasharray="9 7" marker-end="url(#arrow-blue)"/>
+<text x="1486" y="1479" font-size="21" font-weight="400" fill="#2864D9" text-anchor="middle">按需调度</text>
+<rect x="1540" y="1730" width="730" height="819" rx="18" fill="#F0F6FF" stroke="#2864D9" stroke-width="2"/>
+<text x="1568" y="1774" font-size="29" font-weight="700" fill="#2864D9" text-anchor="start">组织 L3 · 稠密反馈 / 分层验证</text>
+<text x="1568" y="1809" font-size="22" font-weight="400" fill="#53657D" text-anchor="start">每次修改优先选择能回答问题的最小验证范围。</text>
+<text x="1570" y="1842" font-size="24" font-weight="700" fill="#2864D9" text-anchor="start">门槛：验证 L0–L2 通过，才进入 L3–L4。</text>
+<polygon points="1676,1872 2134,1872 2160,1960 1650,1960" fill="#F2F9ED" stroke="#368429" stroke-width="2"/>
+<text x="1905" y="1908" font-size="25" font-weight="700" fill="#368429" text-anchor="middle">L0 算子正确性 · 秒级</text>
+<text x="1905" y="1942" font-size="22" font-weight="400" fill="#17263D" text-anchor="middle">拆分算子 / 随机对照 / 参考实现 / 容差与误差</text>
+<polygon points="1654,1982 2156,1982 2182,2070 1628,2070" fill="#F2F9ED" stroke="#368429" stroke-width="2"/>
+<text x="1905" y="2018" font-size="25" font-weight="700" fill="#368429" text-anchor="middle">L1 微基准 · 秒至分钟</text>
+<text x="1905" y="2052" font-size="22" font-weight="400" fill="#17263D" text-anchor="middle">固定输入与设备状态 / warmup / CUDA 同步</text>
+<polygon points="1632,2092 2178,2092 2204,2180 1606,2180" fill="#FFF8E8" stroke="#BE7516" stroke-width="2"/>
+<text x="1905" y="2128" font-size="25" font-weight="700" fill="#BE7516" text-anchor="middle">L2 场景隔离 · 分钟级</text>
+<text x="1905" y="2162" font-size="22" font-weight="400" fill="#17263D" text-anchor="middle">Prefill / KV Transfer / Decode / 长上下文</text>
+<polygon points="1610,2202 2200,2202 2226,2290 1584,2290" fill="#FFF8E8" stroke="#BE7516" stroke-width="2"/>
+<text x="1905" y="2238" font-size="25" font-weight="700" fill="#BE7516" text-anchor="middle">L3 模型级精度 · 分钟至小时</text>
+<text x="1905" y="2272" font-size="22" font-weight="400" fill="#17263D" text-anchor="middle">评测集 / 逐请求输出 diff / 误差是否可接受</text>
+<polygon points="1588,2312 2222,2312 2248,2400 1562,2400" fill="#FFF2F2" stroke="#D74848" stroke-width="2"/>
+<text x="1905" y="2348" font-size="25" font-weight="700" fill="#D74848" text-anchor="middle">L4 端到端压测 · 小时级</text>
+<text x="1905" y="2382" font-size="22" font-weight="400" fill="#17263D" text-anchor="middle">真实负载 / TTFT / TPOT / 吞吐 / 长稳</text>
+<text x="1570" y="2453" font-size="22" font-weight="400" fill="#53657D" text-anchor="start">反馈需绑定：问题 / 假设 / 代码 / GPU / 负载 / 证据。</text>
+<text x="1570" y="2488" font-size="22" font-weight="400" fill="#53657D" text-anchor="start">基准收益须回到真实服务验证；时间尺度为示意。</text>
+<path d="M 1380 1830 H 1496 V 1909 H 1558" fill="none" stroke="#2864D9" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow-blue)"/>
+<text x="1420" y="1805" font-size="21" font-weight="400" fill="#2864D9" text-anchor="start">L0–L2</text>
+<path d="M 1380 2012 H 1487 V 2238 H 1558" fill="none" stroke="#2864D9" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow-blue)"/>
+<text x="1420" y="1989" font-size="21" font-weight="400" fill="#2864D9" text-anchor="start">L3–L4</text>
+<path d="M 1080 2137 H 1469 V 2580" fill="none" stroke="#D74848" stroke-width="3" stroke-linejoin="round" stroke-dasharray="9 7" marker-end="url(#arrow-red)"/>
+<text x="1237" y="2115" font-size="23" font-weight="700" fill="#D74848" text-anchor="start">否决 → 归档反例</text>
+<path d="M 795 2549 V 2580" fill="none" stroke="#7747C7" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow-purple)"/>
+<text x="823" y="2575" font-size="22" font-weight="400" fill="#7747C7" text-anchor="start">经验回流 / 证据沉淀</text>
+<rect x="130" y="2590" width="2140" height="485" rx="18" fill="#EDF9F8" stroke="#008B91" stroke-width="2"/>
+<text x="158" y="2634" font-size="29" font-weight="700" fill="#008B91" text-anchor="start">组织 L4 · 资产层：经验沉淀 + 共享记忆（跨角色 / 跨会话复用）</text>
+<rect x="152" y="2664" width="279" height="165" rx="13" fill="#FFFFFF" stroke="#008B91" stroke-width="2"/>
+<text x="176" y="2704" font-size="25" font-weight="700" fill="#008B91" text-anchor="start">AGENTS.md</text>
+<text x="176" y="2742" font-size="22" font-weight="400" fill="#17263D" text-anchor="start">仓库级经验与约束</text>
+<text x="176" y="2776" font-size="20" font-weight="400" fill="#17263D" text-anchor="start">GPU 优化模式 / 验证入口</text>
+<text x="176" y="2810" font-size="22" font-weight="400" fill="#17263D" text-anchor="start">提交规范 / 适用边界</text>
+<rect x="453" y="2664" width="279" height="165" rx="13" fill="#FFFFFF" stroke="#008B91" stroke-width="2"/>
+<text x="477" y="2704" font-size="25" font-weight="700" fill="#008B91" text-anchor="start">Skill</text>
+<text x="477" y="2742" font-size="22" font-weight="400" fill="#17263D" text-anchor="start">单专家能力包</text>
+<text x="477" y="2776" font-size="22" font-weight="400" fill="#17263D" text-anchor="start">SKILL.md + scripts</text>
+<text x="477" y="2810" font-size="22" font-weight="400" fill="#17263D" text-anchor="start">算子基准 / Trace 解析</text>
+<rect x="754" y="2664" width="279" height="165" rx="13" fill="#FFFFFF" stroke="#008B91" stroke-width="2"/>
+<text x="778" y="2704" font-size="25" font-weight="700" fill="#008B91" text-anchor="start">Swarm Skill</text>
+<text x="778" y="2742" font-size="22" font-weight="400" fill="#17263D" text-anchor="start">多角色协作能力包</text>
+<text x="778" y="2776" font-size="22" font-weight="400" fill="#17263D" text-anchor="start">SwarmFlow / 角色分工</text>
+<text x="778" y="2810" font-size="22" font-weight="400" fill="#17263D" text-anchor="start">瓶颈诊断 / 并行调优</text>
+<rect x="1055" y="2664" width="279" height="165" rx="13" fill="#FFFFFF" stroke="#008B91" stroke-width="2"/>
+<text x="1079" y="2704" font-size="25" font-weight="700" fill="#008B91" text-anchor="start">coding_memory</text>
+<text x="1079" y="2742" font-size="22" font-weight="400" fill="#17263D" text-anchor="start">跨会话项目记忆</text>
+<text x="1079" y="2776" font-size="22" font-weight="400" fill="#17263D" text-anchor="start">用户偏好 / 项目约束</text>
+<text x="1079" y="2810" font-size="22" font-weight="400" fill="#17263D" text-anchor="start">历史决策 / 系统引用</text>
+<rect x="1356" y="2664" width="279" height="165" rx="13" fill="#FFFFFF" stroke="#008B91" stroke-width="2"/>
+<text x="1380" y="2704" font-size="25" font-weight="700" fill="#008B91" text-anchor="start">硬件规格库</text>
+<text x="1380" y="2742" font-size="22" font-weight="400" fill="#17263D" text-anchor="start">H200 / B200 能力卡</text>
+<text x="1380" y="2776" font-size="22" font-weight="400" fill="#17263D" text-anchor="start">HBM / 算力 / 互联实测</text>
+<text x="1380" y="2810" font-size="22" font-weight="400" fill="#17263D" text-anchor="start">拓扑画像 / 带宽矩阵</text>
+<rect x="1657" y="2664" width="279" height="165" rx="13" fill="#FFFFFF" stroke="#008B91" stroke-width="2"/>
+<text x="1681" y="2704" font-size="25" font-weight="700" fill="#008B91" text-anchor="start">实验档案库</text>
+<text x="1681" y="2742" font-size="22" font-weight="400" fill="#17263D" text-anchor="start">假设—实验—证据链</text>
+<text x="1681" y="2776" font-size="22" font-weight="400" fill="#17263D" text-anchor="start">代码 / GPU / 输入形状</text>
+<text x="1681" y="2810" font-size="22" font-weight="400" fill="#17263D" text-anchor="start">精度结果 / 性能 / 反例</text>
+<rect x="1958" y="2664" width="279" height="165" rx="13" fill="#FFFFFF" stroke="#008B91" stroke-width="2"/>
+<text x="1982" y="2704" font-size="25" font-weight="700" fill="#008B91" text-anchor="start">配置档案库</text>
+<text x="1982" y="2742" font-size="22" font-weight="400" fill="#17263D" text-anchor="start">各形态最佳已验证配置</text>
+<text x="1982" y="2776" font-size="21" font-weight="400" fill="#17263D" text-anchor="start">并行 / 量化 / 引擎 / 算子</text>
+<text x="1982" y="2810" font-size="22" font-weight="400" fill="#17263D" text-anchor="start">验证证据 / 部署热启动</text>
+<rect x="152" y="2855" width="1025" height="190" rx="13" fill="#FFFFFF" stroke="#BE7516" stroke-width="2"/>
+<text x="176" y="2895" font-size="26" font-weight="700" fill="#BE7516" text-anchor="start">升级规则 · 按经验复用范围分层</text>
+<text x="176" y="2933" font-size="24" font-weight="400" fill="#17263D" text-anchor="start">新经验 → 先落 AGENTS.md 条目；稳定且重复使用 → 封装为 Skill。</text>
+<text x="176" y="2967" font-size="24" font-weight="400" fill="#17263D" text-anchor="start">多个角色协作形成稳定流程 → 封装 Swarm Skill；一次沉淀，多处复用。</text>
+<text x="176" y="3001" font-size="24" font-weight="400" fill="#17263D" text-anchor="start">每份经验写明 GPU / 软件版本、负载、前提、收益与验证证据。</text>
+<rect x="1200" y="2855" width="1048" height="190" rx="13" fill="#FFFFFF" stroke="#D74848" stroke-width="2"/>
+<text x="1224" y="2895" font-size="26" font-weight="700" fill="#D74848" text-anchor="start">沉淀门禁 · 防止错误经验污染先验</text>
+<text x="1224" y="2933" font-size="24" font-weight="400" fill="#17263D" text-anchor="start">每份资产必须关联可追溯证据，记录适用边界与复现方法。</text>
+<text x="1224" y="2967" font-size="24" font-weight="400" fill="#17263D" text-anchor="start">性能收益需通过与结论相匹配的验证层级；上线结论必须覆盖 L3–L4。</text>
+<text x="1224" y="3001" font-size="24" font-weight="400" fill="#17263D" text-anchor="start">失败假设可作为反例归档；未经验证的猜测不升级为可复用结论。</text>
+<path d="M 1200 3075 V 3130" fill="none" stroke="#CA3680" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow-pink)"/>
+<text x="1230" y="3113" font-size="23" font-weight="400" fill="#CA3680" text-anchor="start">经验资产 → 打包 / 门禁 / 发布</text>
+<rect x="130" y="3140" width="2140" height="448" rx="18" fill="#FFF2F8" stroke="#CA3680" stroke-width="2"/>
+<text x="158" y="3184" font-size="29" font-weight="700" fill="#CA3680" text-anchor="start">组织 L5 · Skill Hub（一次沉淀 · 全局复用）</text>
+<text x="158" y="3219" font-size="22" font-weight="400" fill="#53657D" text-anchor="start">将验证过的 Skill / Swarm Skill 发布为可安装能力包，供 Codex / 三方 Agent 使用。</text>
+<rect x="152" y="3255" width="686" height="306" rx="13" fill="#FFFFFF" stroke="#CA3680" stroke-width="2"/>
+<text x="176" y="3295" font-size="26" font-weight="700" fill="#CA3680" text-anchor="start">① 发布链路 · 作者侧</text>
+<text x="176" y="3333" font-size="23" font-weight="400" fill="#17263D" text-anchor="start">1  打包 Swarm Skill、子 Skill 与协作角色说明</text>
+<text x="176" y="3367" font-size="23" font-weight="400" fill="#17263D" text-anchor="start">2  自检：验证证据 / 实验档案 / 敏感信息脱敏</text>
+<text x="176" y="3401" font-size="23" font-weight="400" fill="#17263D" text-anchor="start">3  在 Skill Hub 创建条目或提交能力包</text>
+<text x="176" y="3435" font-size="23" font-weight="400" fill="#17263D" text-anchor="start">4  填写名称 / 描述 / 版本 / 标签 / GPU 适配</text>
+<text x="176" y="3469" font-size="23" font-weight="400" fill="#17263D" text-anchor="start">5  上传包、README、依赖与复现入口</text>
+<text x="176" y="3503" font-size="23" font-weight="400" fill="#17263D" text-anchor="start">6  审核后发布；维护版本与回滚记录</text>
+<rect x="855" y="3255" width="686" height="306" rx="13" fill="#FFFFFF" stroke="#CA3680" stroke-width="2"/>
+<text x="879" y="3295" font-size="26" font-weight="700" fill="#CA3680" text-anchor="start">② 发布制品 · 完整沉淀物</text>
+<text x="879" y="3333" font-size="23" font-weight="400" fill="#17263D" text-anchor="start">示例包：gpu-opt-swarmflow v1.0</text>
+<text x="879" y="3367" font-size="23" font-weight="400" fill="#17263D" text-anchor="start">workflow.md / bind.md / dependencies.yaml</text>
+<text x="879" y="3401" font-size="23" font-weight="400" fill="#17263D" text-anchor="start">scripts/workflow.py：编排 Phase 0–5</text>
+<text x="879" y="3435" font-size="23" font-weight="400" fill="#17263D" text-anchor="start">roles/*.md：专家职责与交接约定</text>
+<text x="879" y="3469" font-size="23" font-weight="400" fill="#17263D" text-anchor="start">子 Skill：kernel-bench / accuracy / orchestration</text>
+<text x="879" y="3503" font-size="23" font-weight="400" fill="#17263D" text-anchor="start">附带：GPU 配置模板 / 证据摘要 / 经验条目</text>
+<text x="879" y="3537" font-size="23" font-weight="400" fill="#17263D" text-anchor="start">排除：凭据 / 内网地址 / 私有数据 / 项目记忆</text>
+<rect x="1558" y="3255" width="686" height="306" rx="13" fill="#FFFFFF" stroke="#CA3680" stroke-width="2"/>
+<text x="1582" y="3295" font-size="26" font-weight="700" fill="#CA3680" text-anchor="start">③ 一键复用 · 消费侧</text>
+<text x="1582" y="3333" font-size="23" font-weight="400" fill="#17263D" text-anchor="start">1  在 Skill Hub 搜索 GPU 推理优化能力包</text>
+<text x="1582" y="3367" font-size="23" font-weight="400" fill="#17263D" text-anchor="start">2  安装到 Codex / 三方 Agent 的 Skill 目录</text>
+<text x="1582" y="3401" font-size="23" font-weight="400" fill="#17263D" text-anchor="start">3  按 dependencies.yaml 检查与安装依赖</text>
+<text x="1582" y="3435" font-size="23" font-weight="400" fill="#17263D" text-anchor="start">4  注入运行环境访问凭据并定义目标 SLO</text>
+<text x="1582" y="3469" font-size="23" font-weight="400" fill="#17263D" text-anchor="start">5  执行 Phase 0，测绘本地 GPU 与负载</text>
+<text x="1582" y="3503" font-size="23" font-weight="400" fill="#17263D" text-anchor="start">6  进入完整闭环，验证后选择匹配配置</text>
+<text x="1582" y="3537" font-size="23" font-weight="400" fill="#17263D" text-anchor="start">结果：复用方法与证据，结合本地硬件再验证</text>
+<path d="M 130 2724 H 86 V 1460 H 190 V 1498 H 200" fill="none" stroke="#7747C7" stroke-width="3" stroke-linejoin="round" stroke-dasharray="9 7" marker-end="url(#arrow-purple)"/>
+<path d="M 130 3449 H 44 V 1003 H 160" fill="none" stroke="#CA3680" stroke-width="3" stroke-linejoin="round" stroke-dasharray="9 7" marker-end="url(#arrow-pink)"/>
+<text x="132" y="3628" font-size="23" font-weight="400" fill="#53657D" text-anchor="start">闭环①：局部失败 / 裁决修正 → 3.1　　闭环②：上线监控 → Phase 2　　闭环③：经验先验 → 3.1 / Hub 复用 → Phase 0</text>
+<line x1="130" y1="3651" x2="2270" y2="3651" stroke="#DBE4EF" stroke-width="2"/>
+<path d="M 134 3690 H 185" fill="none" stroke="#63748A" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow-line)"/>
+<text x="199" y="3698" font-size="22" font-weight="400" fill="#53657D" text-anchor="start">主流程</text>
+<path d="M 490 3690 H 541" fill="none" stroke="#368429" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow-green)"/>
+<text x="555" y="3698" font-size="22" font-weight="400" fill="#53657D" text-anchor="start">验证通过 / 保留</text>
+<path d="M 846 3690 H 897" fill="none" stroke="#D74848" stroke-width="3" stroke-linejoin="round" stroke-dasharray="9 7" marker-end="url(#arrow-red)"/>
+<text x="911" y="3698" font-size="22" font-weight="400" fill="#53657D" text-anchor="start">失败 / 否决</text>
+<path d="M 1202 3690 H 1253" fill="none" stroke="#7747C7" stroke-width="3" stroke-linejoin="round" stroke-dasharray="9 7" marker-end="url(#arrow-purple)"/>
+<text x="1267" y="3698" font-size="22" font-weight="400" fill="#53657D" text-anchor="start">经验回流 / 先验</text>
+<path d="M 1558 3690 H 1609" fill="none" stroke="#2864D9" stroke-width="3" stroke-linejoin="round" stroke-dasharray="9 7" marker-end="url(#arrow-blue)"/>
+<text x="1623" y="3698" font-size="22" font-weight="400" fill="#53657D" text-anchor="start">验证调用 / 专家调度</text>
+<path d="M 1914 3690 H 1965" fill="none" stroke="#CA3680" stroke-width="3" stroke-linejoin="round" stroke-dasharray="9 7" marker-end="url(#arrow-pink)"/>
+<text x="1979" y="3698" font-size="22" font-weight="400" fill="#53657D" text-anchor="start">Hub 分发 / 复用</text>
+<text x="132" y="3746" font-size="23" font-weight="400" fill="#53657D" text-anchor="start">GPU 适配：H200 侧重 BF16 / FP16 / FP8；B200 可按框架支持评估 FP4 / NVFP4。具体能力以设备与软件栈为准。</text>
+<text x="132" y="3781" font-size="21" font-weight="400" fill="#53657D" text-anchor="start">来源：四张原始流程截图；硬件语境参考 NVIDIA H200、DGX B200 与 Blackwell Tuning Guide。Skill Hub 为通用分发层示意。</text>
+</g></svg>

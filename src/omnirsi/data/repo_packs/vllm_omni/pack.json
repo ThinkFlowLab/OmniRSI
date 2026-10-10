@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "id": "vllm_omni",
+  "source_repository": "vllm-project/vllm-omni",
+  "execution_support": "caller_supplied_external_commands",
+  "scenarios": [
+    "diffusion.image_generation",
+    "diffusion.video_generation",
+    "audio.tts"
+  ],
+  "backend_compatibility": {
+    "cuda": "unverified",
+    "rocm": "unverified",
+    "ascend": "unverified"
+  },
+  "notes": [
+    "This descriptor does not claim a built-in model launcher or a validated accelerator matrix.",
+    "Freeze the actual repository and dependency tuple before measuring."
+  ]
+}

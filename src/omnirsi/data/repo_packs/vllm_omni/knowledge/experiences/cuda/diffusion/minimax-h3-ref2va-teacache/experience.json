@@ -1,0 +1,101 @@
+{
+  "id": "vllm_omni.cuda.diffusion.minimax_h3_ref2va_teacache",
+  "title": "MiniMax-H3 Ref2VA TeaCache needs task-specific calibration and step defaults",
+  "backend": "cuda",
+  "scenario": "diffusion.video_generation",
+  "summary": "An open Ref2VA TeaCache PR calibrates a conservative late-step budget; quality and speed depend on task/step policy, and some cases produce zero hits and no gain.",
+  "tags": [
+    "minimax_h3",
+    "ref2va",
+    "teacache",
+    "approximation",
+    "quality",
+    "request_isolation",
+    "counterexample"
+  ],
+  "sources": [
+    {
+      "url": "https://github.com/vllm-project/vllm-omni/pull/5952",
+      "type": "pull_request",
+      "commit": "f86bd6ad7bfc7e6eb04df0aaacd35ec68643d6a2",
+      "merge_commit": null,
+      "status": "open_draft",
+      "accessed_at": "2026-10-09"
+    },
+    {
+      "url": "https://github.com/vllm-project/vllm-omni/pull/5952#discussion_r3756706344",
+      "type": "pull_request",
+      "commit": "f86bd6ad7bfc7e6eb04df0aaacd35ec68643d6a2",
+      "merge_commit": null,
+      "status": "open_draft",
+      "accessed_at": "2026-10-09"
+    },
+    {
+      "url": "https://github.com/vllm-project/vllm-omni/pull/5952#issuecomment-5288600990",
+      "type": "pull_request",
+      "commit": "f86bd6ad7bfc7e6eb04df0aaacd35ec68643d6a2",
+      "merge_commit": null,
+      "status": "open_draft",
+      "accessed_at": "2026-10-09"
+    }
+  ],
+  "applicability": {
+    "hardware": [
+      "1× NVIDIA B300"
+    ],
+    "software": [
+      "Open PR head f86bd6ad7bfc7e6eb04df0aaacd35ec68643d6a2",
+      "BF16, CUDNN_ATTN, task-specific TeaCache coefficients"
+    ],
+    "models": [
+      "MiniMax-H3 Ref2VA"
+    ],
+    "conditions": [
+      "448×256, 107 output frames, 50 configured steps; fixed-seed comparison",
+      "Calibration uses 15 full-compute Ref2VA cases: 6 image, 6 image+audio, 3 video+audio",
+      "35 initial full-compute denoise calls, then at most five cache hits; other step counts remain uncached"
+    ]
+  },
+  "claims": [
+    {
+      "kind": "upstream_reported",
+      "description": "Video+audio example: 5/49 cache hits; latency 244190→221240 ms, video SSIM 0.9795/PSNR 41.60 dB and audio PSNR 168.8 dB. This demonstrates a speed/quality tradeoff, not exact equivalence."
+    },
+    {
+      "kind": "counterexample",
+      "description": "Image-only example: 0/49 hits; 53340→53260 ms, SSIM 1.000 and sample-identical audio. No meaningful speed gain was observed."
+    },
+    {
+      "kind": "upstream_reported",
+      "description": "Both video+audio runs peak at 140972 MiB; caching reduces compute and is not a weight-memory solution."
+    },
+    {
+      "kind": "review_finding",
+      "description": "An omitted num_inference_steps initially resolved to 0 in cache refresh while the pipeline used 50, bypassing calibrated warmup. Author reports a fix at 0d9594f21 preserved in f86bd6ad7, with shared effective defaults and regressions."
+    }
+  ],
+  "recommendations": [
+    "Treat residual reuse as approximate; keep task-specific calibrated policies and explicit step fallback.",
+    "Maintain separate hooks/request state for FL2VA and Ref2VA; do not copy residuals across tasks or concurrent requests.",
+    "Record actual cache hits and effective step schedule, not just an enabled flag; validate custom thresholds across video and audio."
+  ],
+  "validation_plan": [
+    "Use the exact PR head or verify target-source task support; the PR was open/draft at import.",
+    "Test explicit 50 steps, omitted steps, non-50 steps, task alternation and error/abort reset behavior.",
+    "Same-seed A/B across multiple prompt/media types; measure video, temporal and audio metrics with an explicit acceptance threshold.",
+    "Run at least three unprofiled warm repetitions and measure device/host memory separately from compute reduction."
+  ],
+  "limitations": [
+    "Open/draft PR; no claim of main support or OmniRSI reproduction.",
+    "Reported quality results are a small same-seed sample set; full perception/temporal quality acceptance remains user-specific.",
+    "TeaCache and Cache-DiT are separate mutually exclusive backend choices in the reviewed branch."
+  ],
+  "schema_version": 1,
+  "repo": "vllm_omni",
+  "component": "diffusion",
+  "status": "imported",
+  "verification": {
+    "locally_verified": false,
+    "evidence_level": "open_pr"
+  }
+}

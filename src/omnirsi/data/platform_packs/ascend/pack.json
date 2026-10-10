@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "id": "ascend",
+  "inspection_tool": "npu-smi",
+  "compatibility": "unverified",
+  "notes": [
+    "Tool availability is not model/runtime compatibility evidence.",
+    "Repository-specific backend experience belongs in its scoped knowledge folder."
+  ]
+}
