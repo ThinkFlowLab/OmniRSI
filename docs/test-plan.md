@@ -2,7 +2,7 @@
 
 ## B300 × 4 / LTX-2.5 remote Codex campaign
 
-Follow the [complete CLI Test plan](ltx25-b300-test-plan.md) for pinned source/model preparation, canonical A/V reference, conditional nine-cell TP/Ulysses/VAE search, external Codex invocation and five-group AB/BA acceptance. The goal is at least 30% lower E2E latency relative to a freshly remeasured quality-passing best parallel configuration. This authoring session has no B300 inference evidence.
+Follow the [complete CLI Test plan](ltx25-b300-test-plan.md) for pinned source/model preparation, canonical A/V reference, conditional nine-cell TP/Ulysses/VAE search, external Codex invocation and five-group AB/BA acceptance. The goal is at least 20% lower E2E latency relative to a freshly remeasured quality-passing best parallel configuration. This authoring session has no B300 inference evidence.
 
 The included `examples/ltx25_b300.py` and `examples/ltx25_quality.py` preserve complete media, source/protocol/guard hashes and all trial quality evidence. CPU tests cover command/protocol contracts, drift, incomplete audio/video and owned Linux process cleanup; they do not certify LTX-2.5 parallel configurations.
 

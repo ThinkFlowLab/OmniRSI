@@ -44,12 +44,24 @@ STAGE_2_SIGMAS = (0.909375, 0.725, 0.421875, 0.0)
 VIDEO_CODEC_OPTIONS = {"preset": "ultrafast", "threads": "0", "crf": "18"}
 
 
-def protocol():
+def protocol(args=None):
+    width, height = getattr(args, "width", 1280), getattr(args, "height", 704)
+    if any(isinstance(value, bool) or not isinstance(value, int) or value <= 0 or value % 64
+           for value in (width, height)):
+        raise ValueError("Two-stage width and height must be positive multiples of 64")
+    stage_1, stage_2 = STAGE_1_SIGMAS, STAGE_2_SIGMAS
+    if getattr(args, "diagnostic", False):
+        schedules = []
+        for sigmas, steps in ((stage_1, args.profile_stage1_steps), (stage_2, args.profile_stage2_steps)):
+            if not 1 <= steps < len(sigmas):
+                raise ValueError("Diagnostic steps must be within the fixed stage schedule")
+            schedules.append(tuple(sigmas[i * (len(sigmas) - 1) // steps] for i in range(steps + 1)))
+        stage_1, stage_2 = schedules
     return {"model_id": MODEL_ID, "model_revision": MODEL_REVISION, "pipeline": PIPELINE,
-            "task": "t2v", "width": 1920, "height": 1088, "num_frames": 121, "fps": 24,
-            "num_inference_steps": 8, "refine_steps": 3, "dtype": "bfloat16",
+            "task": "t2v", "width": width, "height": height, "num_frames": 121, "fps": 24,
+            "num_inference_steps": len(stage_1) - 1, "refine_steps": len(stage_2) - 1, "dtype": "bfloat16",
             "decoder": "native_diffvae", "audio_sample_rate": 48000, "audio_channels": 2,
-            "stage_1_sigmas": list(STAGE_1_SIGMAS), "stage_2_sigmas": list(STAGE_2_SIGMAS),
+            "stage_1_sigmas": list(stage_1), "stage_2_sigmas": list(stage_2),
             "guidance": "positive_only", "ltx2_use_conv_vae": False,
             "video_codec_options": dict(VIDEO_CODEC_OPTIONS),
             "prompts": [{"id": f"prompt-{i:03d}-seed-{42+i}", "prompt": prompt, "seed": 42+i}
@@ -195,10 +207,12 @@ def multipart(fields):
 
 
 def request_video(args, item, destination):
+    settings = protocol(args)
     fields = {"model": args.model, "prompt": item["prompt"], "seed": item["seed"],
-              "width": 1920, "height": 1088, "num_frames": 121, "fps": 24, "num_inference_steps": 8,
-              "extra_params": json.dumps({"stage_1_sigmas": list(STAGE_1_SIGMAS),
-                                           "stage_2_sigmas": list(STAGE_2_SIGMAS),
+              "width": settings["width"], "height": settings["height"], "num_frames": 121, "fps": 24,
+              "num_inference_steps": settings["num_inference_steps"],
+              "extra_params": json.dumps({"stage_1_sigmas": settings["stage_1_sigmas"],
+                                           "stage_2_sigmas": settings["stage_2_sigmas"],
                                            "video_codec_options": VIDEO_CODEC_OPTIONS})}
     body, content_type = multipart(fields)
     request = urllib.request.Request(f"http://127.0.0.1:{args.port}/v1/videos/sync", data=body,
@@ -309,7 +323,7 @@ def run_trial(args):
     output.parent.mkdir(parents=True, exist_ok=True)
     media = output.parent / "media"
     media.mkdir(exist_ok=False)
-    base_protocol = protocol()
+    base_protocol = protocol(args)
     record = {"status": "running", "protocol": base_protocol, "protocol_sha256": digest(base_protocol),
               "parallel": {"tp": args.tp, "ulysses": args.ulysses, "cfg": 1, "ring": 1, "vae": args.vae},
               "compile_policy": "eager" if args.eager else "default", "diagnostic": args.diagnostic,
@@ -410,8 +424,8 @@ def freeze_campaign(args):
     reference_path = Path(args.reference_manifest).resolve()
     quality_path = Path(args.quality_script).resolve()
     reference = json.loads(reference_path.read_text(encoding="utf-8"))
-    if not isinstance(reference, dict) or (reference.get("status") != "completed" or reference.get("protocol") != protocol() or
-            reference.get("protocol_sha256") != digest(protocol())):
+    if not isinstance(reference, dict) or (reference.get("status") != "completed" or reference.get("diagnostic", False) or
+            reference.get("protocol") != protocol(args) or reference.get("protocol_sha256") != digest(protocol(args))):
         raise ValueError("Reference must be a completed manifest for this exact frozen protocol")
     semantics = semantic_sources(source)
     if reference.get("semantic_sources_hashes") != semantics or reference.get("helper_sha256") != sha256(__file__):
@@ -420,7 +434,7 @@ def freeze_campaign(args):
         raise ValueError("Reference and configuration search must use the same pinned source commit")
     artifacts = reference.get("artifacts", [])
     if (not isinstance(artifacts, list) or any(not isinstance(item, dict) for item in artifacts) or
-            {item.get("id") for item in artifacts} != {item["id"] for item in protocol()["prompts"]} or len(artifacts) != 3):
+            {item.get("id") for item in artifacts} != {item["id"] for item in protocol(args)["prompts"]} or len(artifacts) != 3):
         raise ValueError("Reference must contain exactly the three fixed prompt/seed artifacts")
     recorded_artifacts, paths = {}, set()
     for item in artifacts:
@@ -470,7 +484,7 @@ def search(args):
         raise ValueError("Search output already exists; start a new campaign directory")
     frozen = freeze_campaign(args)
     root.mkdir(parents=True)
-    campaign = {"status": "running", "protocol": protocol(), "protocol_sha256": digest(protocol()),
+    campaign = {"status": "running", "protocol": protocol(args), "protocol_sha256": digest(protocol(args)),
                 "frozen_evidence": frozen, "cells": []}
     try:
         layouts = [(1, 4)] + ([(2, 2), (4, 1)] if args.include_tp_candidates else [])
@@ -541,6 +555,9 @@ def parser():
         child.add_argument("--source-repo", required=True)
         child.add_argument("--model", default=MODEL_ID, choices=(MODEL_ID,))
         child.add_argument("--cache-root", required=True)
+        child.add_argument("--width", type=int, default=1280)
+        child.add_argument("--height", type=int, default=704,
+                           help="720p-class default; two-stage dimensions must be multiples of 64")
         child.add_argument("--port", type=int, default=8098)
         child.add_argument("--startup-timeout", type=int, default=1800)
         child.add_argument("--request-timeout", type=int, default=900)
@@ -553,6 +570,10 @@ def parser():
             child.add_argument("--single-reference", action="store_true")
             child.add_argument("--eager", action="store_true")
             child.add_argument("--diagnostic", action="store_true")
+            child.add_argument("--profile-stage1-steps", type=int, choices=range(1, 9), default=2,
+                               help="Diagnostic only: subsample the fixed stage-1 sigma schedule")
+            child.add_argument("--profile-stage2-steps", type=int, choices=range(1, 4), default=1,
+                               help="Diagnostic only: subsample the fixed stage-2 sigma schedule")
             child.add_argument("--output", required=True)
         else:
             child.add_argument("--reference-manifest", required=True)
@@ -575,6 +596,9 @@ def main(argv=None):
         previous_sigterm = signal.getsignal(signal.SIGTERM)
         signal.signal(signal.SIGTERM, _termination_handler)
     try:
+        settings = protocol(args)
+        if args.command == "trial" and not args.diagnostic and (args.profile_stage1_steps, args.profile_stage2_steps) != (2, 1):
+            raise ValueError("Profile step overrides require --diagnostic; benchmark steps stay 8+3")
         if args.startup_timeout <= 0 or args.request_timeout <= 0 or not 1 <= args.port <= 65535 or not math.isfinite(args.stop_grace_seconds) or args.stop_grace_seconds < 0:
             raise ValueError("Timeouts and port must be valid positive values")
         if args.command == "search" and args.repetitions < 1:
@@ -584,7 +608,8 @@ def main(argv=None):
         if args.dry_run:
             storage_locations(args, Path(args.output).resolve().parent if args.command == "trial" else args.output_dir,
                               require_source=False)
-            preview = {"protocol": protocol(), "protocol_sha256": digest(protocol()), "gpu_execution": "not started"}
+            preview = {"protocol": settings, "protocol_sha256": digest(settings), "gpu_execution": "not started",
+                       "diagnostic": getattr(args, "diagnostic", False)}
             if args.command == "trial":
                 preview["server_argv"] = server_argv(args)
             else:

@@ -97,6 +97,7 @@ class CampaignTests(unittest.TestCase):
 
     def test_protocol_freezes_warmup_seeds_sigmas_guidance_decoder_codec(self):
         value = campaign.protocol()
+        self.assertEqual((value["width"], value["height"]), (1280, 704))
         measured = {item["seed"] for item in value["prompts"]}
         self.assertEqual(measured, {42, 43, 44})
         self.assertEqual(value["warmup_seeds"], [[10042, 10043, 10044], [11042, 11043, 11044]])
@@ -109,6 +110,40 @@ class CampaignTests(unittest.TestCase):
         self.assertEqual(json.loads(argv[argv.index("--stage-overrides") + 1]), {"0": {"extras": {"ltx2_use_conv_vae": False}}})
         self.assertIn("--cfg-parallel-size", argv)
         self.assertEqual(argv[argv.index("--ring") + 1], "1")
+
+    def test_diagnostic_schedule_is_separate_from_full_benchmark(self):
+        full = campaign.protocol(self.trial_args())
+        args = self.trial_args(("--diagnostic", "--profile-stage1-steps", "2", "--profile-stage2-steps", "1"))
+        short = campaign.protocol(args)
+        self.assertEqual((short["num_inference_steps"], short["refine_steps"]), (2, 1))
+        self.assertEqual(short["stage_1_sigmas"], [1.0, 0.975, 0.0])
+        self.assertEqual(short["stage_2_sigmas"], [0.909375, 0.0])
+        self.assertNotEqual(campaign.digest(short), campaign.digest(full))
+        self.assertEqual((full["num_inference_steps"], full["refine_steps"]), (8, 3))
+        args.profile_stage1_steps, args.profile_stage2_steps = 8, 3
+        self.assertEqual(campaign.protocol(args), full)
+
+    def test_resolution_alignment_and_reference_protocol_are_enforced(self):
+        args = self.trial_args(("--height", "720"))
+        with self.assertRaisesRegex(ValueError, "multiples of 64"):
+            campaign.protocol(args)
+        args = self.search_args(("--height", "768"))
+        with self.assertRaisesRegex(ValueError, "exact frozen protocol"):
+            campaign.freeze_campaign(args)
+
+    def test_profile_overrides_cannot_shorten_a_benchmark(self):
+        arguments = ["trial", "--source-repo", str(self.repo), "--cache-root", str(self.root / "cache"),
+                     "--output", str(self.root / "trial/result.json"), "--profile-stage1-steps", "1", "--dry-run"]
+        with patch.object(campaign, "run_trial", side_effect=AssertionError("must reject before allocation")), \
+             redirect_stderr(io.StringIO()):
+            self.assertEqual(campaign.main(arguments), 1)
+
+    def test_diagnostic_reference_is_never_eligible_even_with_full_schedule(self):
+        reference = json.loads(self.reference.read_text())
+        reference["diagnostic"] = True
+        campaign.write_json(self.reference, reference)
+        with self.assertRaisesRegex(ValueError, "exact frozen protocol"):
+            campaign.freeze_campaign(self.search_args())
 
     def test_request_sends_frozen_sigmas_and_codec_as_extra_params(self):
         response = Mock(status=200, headers={"Content-Type": "video/mp4"})
@@ -245,10 +280,11 @@ class CampaignTests(unittest.TestCase):
         self.assertEqual(record["status"], "aborted")
         self.assertFalse((Path(args.output_dir) / "best.json").exists())
 
-    def simulated_trial(self, mutate=False, dirty=False):
+    def simulated_trial(self, mutate=False, dirty=False, diagnostic=False):
         if dirty:
             (self.repo / "kernel.py").write_text("fixed dirty candidate\n", encoding="utf-8")
         args = self.trial_args()
+        args.diagnostic = diagnostic
         args.vae = 1
         process = Mock(pid=999, returncode=0)
         process.poll.return_value = None
@@ -283,6 +319,18 @@ class CampaignTests(unittest.TestCase):
         self.assertEqual(result["status"], "failed")
         self.assertFalse(result["source_integrity"]["verified"])
         self.assertTrue((self.root / "trial/result.json").is_file())
+
+    def test_diagnostic_trial_has_no_performance_metric_and_cannot_pass_quality(self):
+        result, _ = self.simulated_trial(diagnostic=True)
+        self.assertEqual(result["status"], "completed")
+        self.assertNotIn("metrics", result)
+        self.assertTrue(result["diagnostic"])
+        self.assertEqual(result["protocol"]["num_inference_steps"], 2)
+        quality_spec = importlib.util.spec_from_file_location("diagnostic_quality", SCRIPT.with_name("ltx25_quality.py"))
+        quality = importlib.util.module_from_spec(quality_spec)
+        quality_spec.loader.exec_module(quality)
+        with self.assertRaisesRegex(quality.QualityError, "non-diagnostic"):
+            quality.load_manifest(self.root / "trial/result.json")
 
     def test_generated_trial_manifest_satisfies_quality_frozen_parallel_contract(self):
         result, _ = self.simulated_trial()
