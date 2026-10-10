@@ -1,6 +1,6 @@
 # Local Qwen-Image-2.1-Turbo / B300 × 4 performance plan
 
-This replaces the active LTX-2.5 campaign. [Completed local results](qwen21-turbo-b300-results.md): 12.89% measured E2E improvement; the 20% goal was not reached. The old LTX plan and its blocked evidence remain historical. A plan is not a performance result.
+This is the historical first-stage Qwen campaign that replaced LTX-2.5. [Completed local results](qwen21-turbo-b300-results.md): 12.89% measured E2E improvement; the 20% goal was not reached. The active [phase 2 plan](qwen21-turbo-b300-phase2-plan.md) now targets 30% against the original baseline. Its [profile-derived tasks](qwen21-turbo-b300-phase2-tasks.md) include pinned KDA skill references. Historical records and thresholds remain unchanged.
 
 ## Goal, workload and non-goals
 

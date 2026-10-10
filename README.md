@@ -57,9 +57,11 @@ omnirsi report --run-id RUN_ID --output-dir runs
 
 详见 [完整 Quickstart](docs/quickstart.md)、[远程 Test plan](docs/test-plan.md)。
 
-[B300 四卡 / Qwen-Image-2.1-Turbo 性能计划](docs/qwen21-turbo-b300-test-plan.md)是当前 campaign：固定最新 main 和公开模型 revision，720p 档位、完整 8-step schedule、原生 RGBA PNG；先 profile，再选择质量合格的四卡并行配置并分层优化，以五组 AB/BA 验证至少 20% E2E latency 下降。性能与精度结论以实测报告为准。
+[B300 四卡 / Qwen-Image-2.1-Turbo 第二阶段计划](docs/qwen21-turbo-b300-phase2-plan.md)是当前 campaign：相对最早冻结源码 baseline，目标提高到 **30% E2E latency 下降**。保持 720p 档位、原生 8-step schedule、BF16、RGBA PNG 和精度门槛；重新 profile 后提取框架、流水线及算子任务，并链接固定版本的 KDA skills。最终以五组 AB/BA 和完整图像验证验收。
 
 [本地实测报告](docs/qwen21-turbo-b300-results.md)：五组 AB/BA 为 385.07→335.42 ms，降低 **12.89%**，未达到 20% 目标；所有最终/held-out RGBA 图像的解码像素一致。报告保留被拒绝的迭代和基础设施失败，不把 GPU 计划当作性能证据。
+
+[第二阶段结果](docs/qwen21-turbo-b300-phase2-results.md)：新鲜原始源码 baseline **384.16→266.60 ms，降低30.60%**；相对最早记录385.07 ms降低30.76%。五组 AB/BA 和40张原生RGBA图像验证通过；较慢的第五组及前一轮29.81%的正式FAIL记录均保留。
 
 此前 [LTX-2.5 计划](docs/ltx25-b300-test-plan.md)及[授权阻塞记录](docs/ltx25-b300-local-status.md)保留为历史，当前任务不再依赖该模型授权。
 

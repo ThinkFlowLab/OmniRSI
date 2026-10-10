@@ -2,6 +2,8 @@
 
 **Measured E2E latency fell from 385.07 ms to 335.42 ms: 12.89%. The requested 20% target was not reached.** The eight declared code hypotheses are complete. All final and held-out image checks passed with identical decoded pixels. This is a measured improvement for the frozen workload, not a 20% success claim.
 
+This report preserves phase 1. The continuing [phase 2 plan](qwen21-turbo-b300-phase2-plan.md) targets 30% against the original source baseline, using refreshed profile evidence and the same accuracy thresholds.
+
 | Final metric | Baseline | Candidate |
 | --- | --- | --- |
 | Median of five trial means | 385.0696 ms | 335.4234 ms |
